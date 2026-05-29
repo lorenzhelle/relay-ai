@@ -1,0 +1,9 @@
+// Relay app Xcode build configuration
+// Add this file to .gitignore — fill in your project-specific values locally.
+// Reference these vars in Info.plist as $(SUP_URL) etc.
+
+// Supabase project URL (no trailing slash)
+SUP_URL = https://your-project.supabase.co
+
+// Supabase anon (public) key
+SUP_ANON_KEY = your-anon-key-here

@@ -1,0 +1,15 @@
+# Xcode build artifacts
+relay-ios/build/
+relay-ios/**/*.xcuserstate
+relay-ios/**/xcuserdata/
+
+# Node / Bun
+node_modules/
+bun.lockb
+
+# Secrets
+.env
+relay-plugin/.channel-id
+
+# macOS
+.DS_Store

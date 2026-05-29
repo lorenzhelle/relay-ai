@@ -1,0 +1,211 @@
+import Foundation
+
+// MARK: - Event types (mirrors relay-supabase/types.ts)
+
+/// A voice capture ready to publish to the plugin via Supabase Realtime Broadcast.
+private struct CapturePayload: Encodable {
+    let type = "capture"
+    let clientCaptureId: String
+    let transcript: String
+    let durationSeconds: Double
+    let timestamp: String
+}
+
+/// Events the iOS app can receive back from the plugin.
+enum RelayEvent {
+    /// Plugin acknowledged the capture (silent success).
+    case ack(clientCaptureId: String)
+    /// Plugin wants iOS to speak a message aloud.
+    case speak(clientCaptureId: String, text: String)
+}
+
+// MARK: - RelayCaptureService
+
+/// Manages the live Supabase Realtime Broadcast WebSocket for sending captures
+/// and receiving acks / spoken replies from the relay plugin.
+///
+/// Uses `URLSessionWebSocketTask` with Supabase's Phoenix WebSocket protocol —
+/// no additional SDK dependency required.
+@Observable
+final class RelayCaptureService {
+    static let shared = RelayCaptureService()
+    private init() {}
+
+    // MARK: - Observable state
+
+    private(set) var isConnected = false
+
+    // MARK: - Private state
+
+    private var webSocketTask: URLSessionWebSocketTask?
+    private var channelId: String?
+    private var anonKey: String?
+    private var eventHandler: ((RelayEvent) -> Void)?
+
+    private let urlSession = URLSession(configuration: .default)
+
+    // MARK: - Public API
+
+    /// Start the Realtime connection and subscribe to the plugin→iOS channel.
+    ///
+    /// - Parameters:
+    ///   - channelId: The channel UUID from the pairing response.
+    ///   - supabaseURL: Base URL of the Supabase project.
+    ///   - anonKey: Supabase anon key (public, safe on client).
+    ///   - onEvent: Called on the main actor when an ack or speak event arrives.
+    @MainActor
+    func startListening(
+        channelId: String,
+        supabaseURL: URL,
+        anonKey: String,
+        onEvent: @escaping @MainActor (RelayEvent) -> Void
+    ) {
+        self.channelId = channelId
+        self.anonKey = anonKey
+        self.eventHandler = onEvent
+        openConnection(supabaseURL: supabaseURL, anonKey: anonKey, channelId: channelId)
+    }
+
+    /// Stop the WebSocket and clean up.
+    @MainActor
+    func stopListening() {
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketTask = nil
+        isConnected = false
+        channelId = nil
+        anonKey = nil
+        eventHandler = nil
+    }
+
+    /// Publish a capture over the ios→plugin broadcast channel.
+    @MainActor
+    func sendCapture(
+        transcript: String,
+        clientCaptureId: UUID,
+        durationSeconds: Double,
+        timestamp: Date
+    ) {
+        guard let channelId else { return }
+
+        let payload = CapturePayload(
+            clientCaptureId: clientCaptureId.uuidString,
+            transcript: transcript,
+            durationSeconds: durationSeconds,
+            timestamp: ISO8601DateFormatter().string(from: timestamp)
+        )
+
+        sendBroadcast(
+            event: "message",
+            payload: payload,
+            on: "relay:\(channelId):ios-to-plugin"
+        )
+    }
+
+    // MARK: - WebSocket lifecycle
+
+    @MainActor
+    private func openConnection(supabaseURL: URL, anonKey: String, channelId: String) {
+        var components = URLComponents(
+            url: supabaseURL.appending(path: "/realtime/v1/websocket"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.scheme = supabaseURL.scheme == "https" ? "wss" : "ws"
+        components.queryItems = [
+            URLQueryItem(name: "apikey", value: anonKey),
+            URLQueryItem(name: "vsn", value: "1.0.0"),
+        ]
+        guard let wsURL = components.url else { return }
+
+        var request = URLRequest(url: wsURL)
+        request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+
+        let task = urlSession.webSocketTask(with: request)
+        webSocketTask = task
+        task.resume()
+
+        // Join the plugin→iOS reply channel (Phoenix protocol)
+        let replyChannel = "relay:\(channelId):plugin-to-ios"
+        let joinMsg: [String: Any] = [
+            "topic": "realtime:\(replyChannel)",
+            "event": "phx_join",
+            "payload": ["config": ["broadcast": ["self": false]]],
+            "ref": "1",
+        ]
+        sendRaw(json: joinMsg)
+
+        isConnected = true
+        receiveLoop()
+    }
+
+    private func receiveLoop() {
+        guard let task = webSocketTask else { return }
+        task.receive { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let msg):
+                if case .string(let text) = msg {
+                    Task { @MainActor in self.handleIncoming(text) }
+                }
+                Task { @MainActor in self.receiveLoop() }
+            case .failure:
+                Task { @MainActor in self.isConnected = false }
+            }
+        }
+    }
+
+    @MainActor
+    private func handleIncoming(_ text: String) {
+        guard
+            let data = text.data(using: .utf8),
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let event = json["event"] as? String,
+            event == "broadcast",
+            let payload = json["payload"] as? [String: Any],
+            let type_ = payload["type"] as? String
+        else { return }
+
+        switch type_ {
+        case "ack":
+            guard let id = payload["clientCaptureId"] as? String else { return }
+            eventHandler?(.ack(clientCaptureId: id))
+        case "speak":
+            guard
+                let id = payload["clientCaptureId"] as? String,
+                let text_ = payload["text"] as? String
+            else { return }
+            eventHandler?(.speak(clientCaptureId: id, text: text_))
+        default:
+            break
+        }
+    }
+
+    // MARK: - Helpers
+
+    @MainActor
+    private func sendBroadcast(event: String, payload: some Encodable, on channel: String) {
+        guard
+            let payloadData = try? JSONEncoder().encode(payload),
+            let payloadJSON = try? JSONSerialization.jsonObject(with: payloadData)
+        else { return }
+
+        let msg: [String: Any] = [
+            "topic": "realtime:\(channel)",
+            "event": "broadcast",
+            "payload": [
+                "type": "broadcast",
+                "event": event,
+                "payload": payloadJSON,
+            ],
+            "ref": NSNull(),
+        ]
+        sendRaw(json: msg)
+    }
+
+    private func sendRaw(json: [String: Any]) {
+        guard
+            let data = try? JSONSerialization.data(withJSONObject: json),
+            let str = String(data: data, encoding: .utf8)
+        else { return }
+        webSocketTask?.send(.string(str)) { _ in }
+    }
+}

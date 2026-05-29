@@ -1,0 +1,29 @@
+# Supabase CLI project config
+# Run: supabase init (if not already done), then supabase start
+
+project_id = "relay"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+
+[db]
+port = 54322
+shadow_port = 54320
+
+[studio]
+enabled = true
+port = 54323
+
+[ingest]
+enabled = false
+
+[storage]
+enabled = false
+
+[auth]
+enabled = false
+
+[functions]
+verify_jwt = false

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent for relay-plugin.
+  Install:
+    cp com.lorenzhelle.relay-plugin.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.lorenzhelle.relay-plugin.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.lorenzhelle.relay-plugin.plist
+    rm ~/Library/LaunchAgents/com.lorenzhelle.relay-plugin.plist
+
+  View logs:
+    tail -f /tmp/relay-plugin.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lorenzhelle.relay-plugin</string>
+
+    <!-- NOTE: relay-plugin is an MCP server — it is normally launched by Claude Code
+         via .mcp.json. This agent is ONLY useful when you want relay to run
+         persistently as a standalone daemon (e.g. pairing code always ready,
+         or use with a different MCP host). Comment out or remove if Claude Code
+         is your only host. -->
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/lors/.bun/bin/bun</string>
+        <string>run</string>
+        <string>/Users/lors/Repos/relay/relay-plugin/index.ts</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/lors/Repos/relay/relay-plugin</string>
+
+    <!-- Inherit the user's PATH so bun can find node_modules -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/lors</string>
+        <key>PATH</key>
+        <string>/Users/lors/.bun/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <!-- Credentials are loaded from relay-plugin/.env by the index.ts boot code. -->
+    </dict>
+
+    <!-- Restart automatically on crash / exit -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Start at login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/relay-plugin.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/relay-plugin.log</string>
+
+    <!-- Throttle rapid restart loops (seconds) -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>

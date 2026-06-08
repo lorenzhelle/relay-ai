@@ -26,6 +26,14 @@ final class CaptureViewModel {
     init(whisper: WhisperService, store: CaptureStore) {
         self.whisper = whisper
         self.store = store
+        // Update capture status when the plugin acks a delivery.
+        // No deregistration needed: CaptureViewModel is @State in AppCoordinatorView
+        // and lives for the entire app session.
+        RelayCaptureService.shared.addHandler { [weak store] event in
+            guard case .ack(let captureId) = event,
+                  let id = UUID(uuidString: captureId) else { return }
+            store?.updateStatus(of: id, to: .sent)
+        }
     }
 
     // MARK: - Start

@@ -10,7 +10,7 @@ final class RelayChannelService {
     static let shared = RelayChannelService()
     private init() {}
 
-    /// Supabase project base URL. Read from Info.plist key `SUP_URL`.
+    /// Supabase project base URL. Read from Info.plist key `SUP_URL` (set via Config.xcconfig).
     /// Falls back to a placeholder so the app still builds without a config file.
     static let supabaseURL: URL = {
         if let raw = Bundle.main.object(forInfoDictionaryKey: "SUP_URL") as? String,
@@ -19,6 +19,16 @@ final class RelayChannelService {
             return url
         }
         return URL(string: "https://your-project.supabase.co")!
+    }()
+
+    /// Supabase publishable / anon key. Read from Info.plist key `SUP_ANON_KEY` (set via Config.xcconfig).
+    /// Needed both to call Edge Functions and to open the Realtime WebSocket.
+    static let supabaseAnonKey: String = {
+        if let raw = Bundle.main.object(forInfoDictionaryKey: "SUP_ANON_KEY") as? String,
+           !raw.hasPrefix("$(") {
+            return raw
+        }
+        return ""
     }()
 
     private let session = URLSession.shared
@@ -31,6 +41,11 @@ final class RelayChannelService {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let key = RelayChannelService.supabaseAnonKey
+        if !key.isEmpty {
+            req.setValue(key, forHTTPHeaderField: "apikey")
+            req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        }
         req.httpBody = try JSONEncoder().encode(["code": code])
 
         let (data, response) = try await session.data(for: req)

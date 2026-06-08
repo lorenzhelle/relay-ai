@@ -40,7 +40,8 @@ final class RelayCaptureService {
     private var webSocketTask: URLSessionWebSocketTask?
     private var channelId: String?
     private var anonKey: String?
-    private var eventHandler: ((RelayEvent) -> Void)?
+    /// All registered event observers, keyed by an opaque token.
+    private var eventHandlers: [UUID: (RelayEvent) -> Void] = [:]
 
     private let urlSession = URLSession(configuration: .default)
 
@@ -51,22 +52,44 @@ final class RelayCaptureService {
     /// - Parameters:
     ///   - channelId: The channel UUID from the pairing response.
     ///   - supabaseURL: Base URL of the Supabase project.
-    ///   - anonKey: Supabase anon key (public, safe on client).
+    ///   - anonKey: Supabase publishable/anon key (public, safe on client).
     ///   - onEvent: Called on the main actor when an ack or speak event arrives.
+    ///              Returns an opaque token that can be passed to `removeHandler(_:)`.
     @MainActor
+    @discardableResult
     func startListening(
         channelId: String,
         supabaseURL: URL,
         anonKey: String,
         onEvent: @escaping @MainActor (RelayEvent) -> Void
-    ) {
+    ) -> UUID {
         self.channelId = channelId
         self.anonKey = anonKey
-        self.eventHandler = onEvent
-        openConnection(supabaseURL: supabaseURL, anonKey: anonKey, channelId: channelId)
+        let token = addHandler(onEvent)
+        if webSocketTask == nil {
+            openConnection(supabaseURL: supabaseURL, anonKey: anonKey, channelId: channelId)
+        }
+        return token
     }
 
-    /// Stop the WebSocket and clean up.
+    /// Register an additional event observer on an already-running connection.
+    ///
+    /// - Returns: An opaque token to pass to `removeHandler(_:)` when done.
+    @MainActor
+    @discardableResult
+    func addHandler(_ handler: @escaping @MainActor (RelayEvent) -> Void) -> UUID {
+        let token = UUID()
+        eventHandlers[token] = handler
+        return token
+    }
+
+    /// Remove a previously registered event observer.
+    @MainActor
+    func removeHandler(_ token: UUID) {
+        eventHandlers.removeValue(forKey: token)
+    }
+
+    /// Stop the WebSocket and clean up all handlers.
     @MainActor
     func stopListening() {
         webSocketTask?.cancel(with: .goingAway, reason: nil)
@@ -74,7 +97,7 @@ final class RelayCaptureService {
         isConnected = false
         channelId = nil
         anonKey = nil
-        eventHandler = nil
+        eventHandlers.removeAll()
     }
 
     /// Publish a capture over the ios→plugin broadcast channel.
@@ -164,19 +187,21 @@ final class RelayCaptureService {
             let type_ = payload["type"] as? String
         else { return }
 
+        let relayEvent: RelayEvent
         switch type_ {
         case "ack":
             guard let id = payload["clientCaptureId"] as? String else { return }
-            eventHandler?(.ack(clientCaptureId: id))
+            relayEvent = .ack(clientCaptureId: id)
         case "speak":
             guard
                 let id = payload["clientCaptureId"] as? String,
                 let text_ = payload["text"] as? String
             else { return }
-            eventHandler?(.speak(clientCaptureId: id, text: text_))
+            relayEvent = .speak(clientCaptureId: id, text: text_)
         default:
-            break
+            return
         }
+        for handler in eventHandlers.values { handler(relayEvent) }
     }
 
     // MARK: - Helpers

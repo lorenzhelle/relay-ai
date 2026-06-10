@@ -9,7 +9,7 @@ bun.lockb
 
 # Secrets
 .env
-relay-plugin/.channel-id
+relay-agent/.channel-id
 
 # macOS
 .DS_Store

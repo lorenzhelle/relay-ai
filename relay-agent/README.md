@@ -1,9 +1,9 @@
-# relay-plugin
+# relay-agent
 
 An MCP [channel](https://code.claude.com/docs/en/channels.md) that bridges **Claude Code** with the **Relay iOS app**. Record a voice note on your phone — the plugin transcribes it, forwards it to Claude, and speaks the reply back through your phone.
 
 ```
-iPhone mic  ──► Relay iOS app  ──► Supabase Realtime  ──► relay-plugin  ──► Claude
+iPhone mic  ──► Relay iOS app  ──► Supabase Realtime  ──► relay-agent  ──► Claude
              ◄──  AVSpeech TTS  ◄──  Supabase Realtime  ◄──  reply tool  ◄──
 ```
 
@@ -22,7 +22,7 @@ iPhone mic  ──► Relay iOS app  ──► Supabase Realtime  ──► rela
 ### 1. Install dependencies
 
 ```bash
-cd relay-plugin
+cd relay-agent
 bun install
 ```
 
@@ -48,7 +48,7 @@ Add the plugin to your project-level `.mcp.json` (or under `mcpServers` in `~/.c
   "mcpServers": {
     "relay": {
       "command": "bun",
-      "args": ["run", "/absolute/path/to/relay-plugin/index.ts"]
+      "args": ["run", "/absolute/path/to/relay-agent/index.ts"]
     }
   }
 }
@@ -85,7 +85,7 @@ Claude Code channels work over MCP using `notifications/claude/channel` events. 
 ## Project structure
 
 ```
-relay-plugin/
+relay-agent/
 ├── index.ts          # Boot: wires modules together and starts the server
 ├── src/
 │   ├── config.ts     # Env vars, pairing-code generation, channel-ID persistence

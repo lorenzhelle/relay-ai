@@ -33,12 +33,12 @@ export async function registerPairingCode(
 
   if (error) {
     console.error(
-      "[relay-plugin] failed to register pairing code:",
+      "[relay-agent] failed to register pairing code:",
       error.message,
     );
   } else {
     console.error(
-      `[relay-plugin] registered pairing code ${pairingCode} (expires in ${CODE_EXPIRES_MIN}m)`,
+      `[relay-agent] registered pairing code ${pairingCode} (expires in ${CODE_EXPIRES_MIN}m)`,
     );
   }
 }

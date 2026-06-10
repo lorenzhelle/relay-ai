@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  launchd agent for relay-plugin.
+  launchd agent for relay-agent.
   Install:
-    cp com.lorenzhelle.relay-plugin.plist ~/Library/LaunchAgents/
-    launchctl load ~/Library/LaunchAgents/com.lorenzhelle.relay-plugin.plist
+    cp com.lorenzhelle.relay-agent.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.lorenzhelle.relay-agent.plist
 
   Uninstall:
-    launchctl unload ~/Library/LaunchAgents/com.lorenzhelle.relay-plugin.plist
-    rm ~/Library/LaunchAgents/com.lorenzhelle.relay-plugin.plist
+    launchctl unload ~/Library/LaunchAgents/com.lorenzhelle.relay-agent.plist
+    rm ~/Library/LaunchAgents/com.lorenzhelle.relay-agent.plist
 
   View logs:
-    tail -f /tmp/relay-plugin.log
+    tail -f /tmp/relay-agent.log
 -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.lorenzhelle.relay-plugin</string>
+    <string>com.lorenzhelle.relay-agent</string>
 
-    <!-- NOTE: relay-plugin is an MCP server — it is normally launched by Claude Code
+    <!-- NOTE: relay-agent is an MCP server — it is normally launched by Claude Code
          via .mcp.json. This agent is ONLY useful when you want relay to run
          persistently as a standalone daemon (e.g. pairing code always ready,
          or use with a different MCP host). Comment out or remove if Claude Code
@@ -28,11 +28,11 @@
     <array>
         <string>/Users/lors/.bun/bin/bun</string>
         <string>run</string>
-        <string>/Users/lors/Repos/relay/relay-plugin/index.ts</string>
+        <string>/Users/lors/Repos/relay/relay-agent/index.ts</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/lors/Repos/relay/relay-plugin</string>
+    <string>/Users/lors/Repos/relay/relay-agent</string>
 
     <!-- Inherit the user's PATH so bun can find node_modules -->
     <key>EnvironmentVariables</key>
@@ -41,7 +41,7 @@
         <string>/Users/lors</string>
         <key>PATH</key>
         <string>/Users/lors/.bun/bin:/usr/local/bin:/usr/bin:/bin</string>
-        <!-- Credentials are loaded from relay-plugin/.env by the index.ts boot code. -->
+        <!-- Credentials are loaded from relay-agent/.env by the index.ts boot code. -->
     </dict>
 
     <!-- Restart automatically on crash / exit -->
@@ -53,9 +53,9 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/tmp/relay-plugin.log</string>
+    <string>/tmp/relay-agent.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/relay-plugin.log</string>
+    <string>/tmp/relay-agent.log</string>
 
     <!-- Throttle rapid restart loops (seconds) -->
     <key>ThrottleInterval</key>

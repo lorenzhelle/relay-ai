@@ -5,20 +5,24 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { SUPABASE_URL, CODE_EXPIRES_MIN } from "./config.js";
 
+// NOTE: forwardCaptureToClaude() and announceToClaudeOnce() have been moved to
+// McpNotificationChannel in src/input-channel.ts. They are preserved there and
+// re-enabled via RELAY_CHANNEL_MODE=mcp.
+
 // ─── Server ───────────────────────────────────────────────────────────────────
 
 export const mcp = new Server(
   { name: "relay", version: "1.0.0" },
   {
     capabilities: {
+      // Keep the channel capability declared so the MCP server still advertises
+      // it correctly for future channel support.
       experimental: { "claude/channel": {} },
       tools: {},
     },
     instructions:
-      'Voice transcripts from the Relay iOS app arrive as <channel source="relay" ...> events. ' +
-      "Each event is a voice note transcription the user recorded on their phone. " +
-      "Process and respond to them naturally. " +
-      "Use the reply tool to send a message back to the user's phone.",
+      "You are the Relay voice bridge. The user's voice transcripts are processed " +
+      "via the Agent SDK. Use the reply tool to speak back to the user's phone.",
   },
 );
 
@@ -96,54 +100,4 @@ export function registerToolHandlers(
         throw new Error(`Unknown tool: ${request.params.name}`);
     }
   });
-}
-
-// ─── Startup announcement ─────────────────────────────────────────────────────
-
-let announced = false;
-
-/**
- * Sends a one-time system notification to Claude so the pairing code
- * appears in context immediately on startup.
- */
-export function announceToClaudeOnce(pairingCode: string): void {
-  if (announced) return;
-  announced = true;
-  mcp
-    .notification({
-      method: "notifications/claude/channel",
-      params: {
-        content:
-          `Relay channel ready · pairing code: ${pairingCode} · ` +
-          `ask me "how do I pair my phone?" for setup details`,
-        meta: { type: "system", event: "startup" },
-      },
-    })
-    .catch(() => {});
-}
-
-// ─── Channel event helpers ────────────────────────────────────────────────────
-
-/** Forwards a voice transcript from iOS to Claude as a channel event. */
-export function forwardCaptureToClaude(payload: {
-  transcript: string;
-  clientCaptureId?: string;
-  durationSeconds?: number;
-  timestamp?: string;
-}): void {
-  const { transcript, clientCaptureId, durationSeconds, timestamp } = payload;
-
-  mcp
-    .notification({
-      method: "notifications/claude/channel",
-      params: {
-        content: transcript,
-        meta: {
-          captureId: clientCaptureId ?? "",
-          duration: String(durationSeconds ?? ""),
-          timestamp: timestamp ?? new Date().toISOString(),
-        },
-      },
-    })
-    .catch(() => {});
 }

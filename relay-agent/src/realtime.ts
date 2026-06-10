@@ -1,6 +1,6 @@
 import { type RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase.js";
-import { forwardCaptureToClaude, announceToClaudeOnce } from "./mcp.js";
+import type { InputChannel } from "./input-channel.js";
 
 // ─── Channel names ────────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ export function subscribeToCaptures(channelId: string): void {
   outboundChannel = supabase.channel(pluginToIos);
   outboundChannel.subscribe((status) => {
     if (status === "SUBSCRIBED") {
-      console.error(`[relay-plugin] publishing replies on ${pluginToIos}`);
+      console.error(`[relay-agent] publishing replies on ${pluginToIos}`);
     }
   });
 
@@ -59,18 +59,25 @@ export function subscribeToCaptures(channelId: string): void {
       if (!transcript) return;
 
       console.error(
-        `[relay-plugin] capture received: "${transcript.slice(0, 60)}${transcript.length > 60 ? "..." : ""}"`,
+        `[relay-agent] capture received: "${transcript.slice(0, 60)}${transcript.length > 60 ? "..." : ""}"`,
       );
 
-      forwardCaptureToClaude({ transcript, clientCaptureId, durationSeconds, timestamp });
+      // Forward transcript to whichever InputChannel is active (AgentSdkChannel
+      // or McpNotificationChannel, depending on RELAY_CHANNEL_MODE).
+      _inputChannel?.send(transcript, {
+        captureId: clientCaptureId,
+        duration: String(durationSeconds ?? ""),
+        timestamp: timestamp ?? new Date().toISOString(),
+      });
 
       // Immediately ack so the iOS app knows the message was received
       sendToIos({ type: "ack", clientCaptureId });
     })
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {
-        console.error(`[relay-plugin] listening on ${iosToPlugin}`);
-        announceToClaudeOnce(/* pairingCode injected via init */ _pairingCode);
+        console.error(`[relay-agent] listening on ${iosToPlugin}`);
+        // Startup announcement in MCP mode is handled by index.ts via
+        // McpNotificationChannel.announce(). No action needed here.
       }
     });
 }
@@ -78,8 +85,10 @@ export function subscribeToCaptures(channelId: string): void {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 let _pairingCode = "";
+let _inputChannel: InputChannel | null = null;
 
-/** Must be called before subscribeToCaptures so the announcement has the code. */
-export function initRealtime(pairingCode: string): void {
+/** Must be called before subscribeToCaptures. */
+export function initRealtime(pairingCode: string, inputChannel: InputChannel): void {
   _pairingCode = pairingCode;
+  _inputChannel = inputChannel;
 }

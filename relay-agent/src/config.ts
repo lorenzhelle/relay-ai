@@ -8,8 +8,8 @@ export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error(
-    "[relay-plugin] SUPABASE_URL and SUPABASE_ANON_KEY must be set.\n" +
-      "Copy relay-plugin/.env.example → relay-plugin/.env and fill in your project values.",
+    "[relay-agent] SUPABASE_URL and SUPABASE_ANON_KEY must be set.\n" +
+      "Copy relay-agent/.env.example → relay-agent/.env and fill in your project values.",
   );
   process.exit(1);
 }

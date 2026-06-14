@@ -1,16 +1,6 @@
 import Foundation
 import Security
 
-struct ChannelCredentials {
-    let channelId: String
-    let authToken: String
-}
-
-struct PairingResult: Hashable {
-    let channelId: String
-    let authToken: String
-}
-
 final class KeychainStore {
     static let shared = KeychainStore()
     private init() {}
@@ -21,25 +11,17 @@ final class KeychainStore {
         try save(key: "channelId", value: channelId)
     }
 
-    func save(authToken: String) throws {
-        try save(key: "authToken", value: authToken)
-    }
-
-    func loadChannelCredentials() throws -> ChannelCredentials {
-        let channelId = try load(key: "channelId")
-        let authToken = try load(key: "authToken")
-        return ChannelCredentials(channelId: channelId, authToken: authToken)
+    func loadChannelId() throws -> String {
+        try load(key: "channelId")
     }
 
     func clearAll() {
-        for key in ["channelId", "authToken"] {
-            let query: [CFString: Any] = [
-                kSecClass: kSecClassGenericPassword,
-                kSecAttrService: service,
-                kSecAttrAccount: key,
-            ]
-            SecItemDelete(query as CFDictionary)
-        }
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: "channelId",
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 
     // MARK: - Private

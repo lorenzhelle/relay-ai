@@ -33,11 +33,17 @@ export function generateCode(): string {
 const CHANNEL_ID_PATH = join(import.meta.dir, "..", ".channel-id");
 
 /**
- * Returns the persisted channel UUID, creating one on first run.
- * The channel ID is stable across restarts so the iOS app can reconnect
- * without re-pairing.
+ * Returns the channel UUID to use for this agent instance.
+ *
+ * Resolution order:
+ *   1. CHANNEL_ID env var — copy this from the iOS app's Settings screen after
+ *      the first launch and add it to relay-agent/.env.
+ *   2. .channel-id file — legacy fallback, created automatically on first run.
  */
 export function loadOrCreateChannelId(): string {
+  if (process.env.CHANNEL_ID) {
+    return process.env.CHANNEL_ID.trim();
+  }
   if (existsSync(CHANNEL_ID_PATH)) {
     return readFileSync(CHANNEL_ID_PATH, "utf8").trim();
   }

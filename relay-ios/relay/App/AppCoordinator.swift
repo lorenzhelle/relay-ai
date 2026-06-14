@@ -10,10 +10,11 @@ final class AppCoordinator {
     private let synth = AVSpeechSynthesizer()
 
     init() {
-        isOnboarded = (try? keychain.loadChannelCredentials()) != nil
+        isOnboarded = (try? keychain.loadChannelId()) != nil
     }
 
     func onboardingComplete() {
+        // ChannelIdView already saved the channelId to Keychain before calling here.
         isOnboarded = true
         startRelay()
     }
@@ -26,16 +27,16 @@ final class AppCoordinator {
 
     // MARK: - Relay connection
 
-    /// Start the Realtime WebSocket after onboarding (or on cold launch when already paired).
+    /// Start the Realtime WebSocket after onboarding (or on cold launch when already onboarded).
     @MainActor
     func startRelay() {
-        guard let creds = try? keychain.loadChannelCredentials() else { return }
-        let anonKey = RelayChannelService.supabaseAnonKey
+        guard let channelId = try? keychain.loadChannelId() else { return }
+        let anonKey = SupabaseConfig.anonKey
         guard !anonKey.isEmpty else { return }
 
         RelayCaptureService.shared.startListening(
-            channelId: creds.channelId,
-            supabaseURL: RelayChannelService.supabaseURL,
+            channelId: channelId,
+            supabaseURL: SupabaseConfig.url,
             anonKey: anonKey
         ) { [weak self] event in
             self?.handle(event: event)
@@ -90,7 +91,7 @@ struct AppCoordinatorView: View {
             }
         }
         .task {
-            // On cold launch when already paired, open the WebSocket immediately.
+            // On cold launch when already onboarded, open the WebSocket immediately.
             if coordinator.isOnboarded {
                 coordinator.startRelay()
             }

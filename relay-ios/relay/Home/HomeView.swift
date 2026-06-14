@@ -1,15 +1,17 @@
 import SwiftUI
 
 struct HomeView: View {
+    @Environment(AppCoordinator.self) private var appCoordinator
     @Environment(CaptureViewModel.self) private var captureVM
     @Environment(CaptureStore.self) private var store
+    @State private var showSettings = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
             Color.relayBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                RelayHeader(status: .connected, detail: "local · queued")
+                HomeHeader(showSettings: $showSettings)
 
                 if store.captures.isEmpty {
                     Spacer()
@@ -40,6 +42,10 @@ struct HomeView: View {
         .overlay {
             CaptureFlowView()
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsSheet()
+                .environment(appCoordinator)
+        }
     }
 
     private var capturesByDay: [CaptureDay] {
@@ -60,6 +66,40 @@ struct HomeView: View {
         if calendar.isDateInToday(date) { return "today" }
         if calendar.isDateInYesterday(date) { return "yesterday" }
         return date.formatted(.dateTime.weekday(.wide).day().month(.abbreviated)).lowercased()
+    }
+}
+
+// MARK: - Home header
+
+private struct HomeHeader: View {
+    @Binding var showSettings: Bool
+
+    var body: some View {
+        HStack(alignment: .bottom) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color.relaySage)
+                    .frame(width: 8, height: 8)
+                Text("relay")
+                    .font(.relaySans(size: 19, weight: .medium))
+                    .foregroundStyle(Color.relayInk)
+                    .tracking(-0.2)
+            }
+
+            Spacer()
+
+            Button {
+                showSettings = true
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(Color.relayMuted)
+                    .frame(width: 28, height: 28)
+            }
+        }
+        .padding(.top, RelaySpacing.headerTop)
+        .padding(.horizontal, RelaySpacing.screenH)
+        .padding(.bottom, RelaySpacing.headerBottom)
     }
 }
 
@@ -234,6 +274,7 @@ private struct HoldToSpeakButton: View {
     let captureVM = CaptureViewModel(speech: speech, store: store)
 
     return HomeView()
+        .environment(AppCoordinator())
         .environment(captureVM)
         .environment(store)
 }

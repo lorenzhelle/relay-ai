@@ -9,12 +9,10 @@ struct OnboardingRootView: View {
             WelcomeView()
                 .navigationDestination(for: OnboardingStep.self) { step in
                     switch step {
-                    case .pairingCode:
-                        PairingCodeView()
-                    case .paired(let result):
-                        PairedView(result: result)
                     case .triggerPick:
                         TriggerPickView()
+                    case .channelId(let id):
+                        ChannelIdView(channelId: id)
                     case .firstCapture:
                         FirstCaptureView()
                     }

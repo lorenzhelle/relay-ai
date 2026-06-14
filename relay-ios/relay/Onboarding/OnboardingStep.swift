@@ -1,8 +1,7 @@
 import Foundation
 
 enum OnboardingStep: Hashable {
-    case pairingCode
-    case paired(PairingResult)
     case triggerPick
+    case channelId(String)
     case firstCapture
 }

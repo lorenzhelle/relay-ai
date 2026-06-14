@@ -46,12 +46,12 @@ struct TriggerPickView: View {
             .scrollIndicators(.hidden)
 
             OnboardBottom(
-                step: 5, total: 5,
+                step: 2, total: 3,
                 primaryLabel: "Shortcut installieren",
                 secondaryLabel: "oder später · Settings → Trigger",
                 action: {
                     vm.installTrigger()
-                    coordinator.advance(to: .firstCapture)
+                    coordinator.advance(to: .channelId(UUID().uuidString.lowercased()))
                 }
             )
         }

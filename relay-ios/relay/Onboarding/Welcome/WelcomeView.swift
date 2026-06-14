@@ -38,10 +38,10 @@ struct WelcomeView: View {
             .scrollIndicators(.hidden)
 
             OnboardBottom(
-                step: 1, total: 4,
+                step: 1, total: 3,
                 primaryLabel: "Rechner ist bereit",
                 secondaryLabel: "sonst erst dort einrichten",
-                action: { coordinator.advance(to: .pairingCode) }
+                action: { coordinator.advance(to: .triggerPick) }
             )
         }
         .relayNavBar(status: .offline, detail: "not paired")
@@ -56,7 +56,7 @@ struct WelcomeView: View {
                     .tracking(1.2)
                     .textCase(.uppercase)
                 Spacer()
-                Text("~5 min")
+                Text("~3 min")
                     .font(.jetbrainsMono(size: 10))
                     .foregroundStyle(Color.relayFaint)
             }
@@ -71,17 +71,12 @@ struct WelcomeView: View {
                 prerequisiteRow(
                     number: "2",
                     text: "Bun installiert",
-                    hint: "bun.sh · wird vom Relay-Plugin gebraucht"
+                    hint: "bun.sh · wird vom relay-agent gebraucht"
                 )
                 prerequisiteRow(
                     number: "3",
-                    command: "claude --dangerously-load-development-channels server:relay",
-                    hint: "auf der Maschine mit deiner Claude-Session ausführen"
-                )
-                prerequisiteRow(
-                    number: "4",
-                    text: "Pairing-Code notieren",
-                    hint: "Claude zeigt ihn beim Start an — 6 Zeichen"
+                    text: "relay-agent/.env eingerichtet",
+                    hint: "SUPABASE_URL + SUPABASE_ANON_KEY aus dem Supabase-Dashboard"
                 )
             }
 
@@ -89,7 +84,7 @@ struct WelcomeView: View {
                 .background(Color.relayHair)
                 .padding(.top, 14)
 
-            Text("Anleitung steht in der README · kein Telegram, kein eigener Bot")
+            Text("Die Channel-ID wird beim Setup angezeigt — relay-agent erst danach starten")
                 .font(.jetbrainsMono(size: 10))
                 .foregroundStyle(Color.relayFaint)
                 .tracking(0.3)

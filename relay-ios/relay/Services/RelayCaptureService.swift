@@ -15,8 +15,9 @@ private struct CapturePayload: Encodable {
 enum RelayEvent {
     /// Plugin acknowledged the capture (silent success).
     case ack(clientCaptureId: String)
-    /// Plugin wants iOS to speak a message aloud.
-    case speak(clientCaptureId: String, text: String)
+    /// Plugin wants iOS to speak a message aloud (and display it).
+    /// `clientCaptureId` is nil when the reply isn't tied to a specific capture.
+    case speak(clientCaptureId: String?, text: String)
 }
 
 // MARK: - RelayCaptureService
@@ -193,10 +194,10 @@ final class RelayCaptureService {
             guard let id = payload["clientCaptureId"] as? String else { return }
             relayEvent = .ack(clientCaptureId: id)
         case "speak":
-            guard
-                let id = payload["clientCaptureId"] as? String,
-                let text_ = payload["text"] as? String
-            else { return }
+            guard let text_ = payload["text"] as? String else { return }
+            // clientCaptureId is optional: the agent includes it when the reply
+            // answers a specific capture, but a bare reply is still valid.
+            let id = payload["clientCaptureId"] as? String
             relayEvent = .speak(clientCaptureId: id, text: text_)
         default:
             return

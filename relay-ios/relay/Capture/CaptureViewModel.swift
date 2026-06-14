@@ -16,23 +16,29 @@ final class CaptureViewModel {
     private(set) var elapsedSeconds: Int = 0
 
     let recorder: AudioRecorder = AudioRecorder()
-    let whisper: WhisperService
+    let speech: SpeechTranscriptionService
     let store: CaptureStore
 
     private var transcribeTask: Task<Void, Never>?
     private var timerTask: Task<Void, Never>?
     private var recordingStartDate: Date?
 
-    init(whisper: WhisperService, store: CaptureStore) {
-        self.whisper = whisper
+    init(speech: SpeechTranscriptionService, store: CaptureStore) {
+        self.speech = speech
         self.store = store
         // Update capture status when the plugin acks a delivery.
         // No deregistration needed: CaptureViewModel is @State in AppCoordinatorView
         // and lives for the entire app session.
         RelayCaptureService.shared.addHandler { [weak store] event in
-            guard case .ack(let captureId) = event,
-                  let id = UUID(uuidString: captureId) else { return }
-            store?.updateStatus(of: id, to: .sent)
+            switch event {
+            case .ack(let captureId):
+                guard let id = UUID(uuidString: captureId) else { return }
+                store?.updateStatus(of: id, to: .sent)
+            case .speak(let captureId, let text):
+                // Display the agent's reply in the timeline (AppCoordinator
+                // separately speaks it aloud via TTS).
+                store?.setReply(text, for: captureId.flatMap(UUID.init))
+            }
         }
     }
 
@@ -48,8 +54,8 @@ final class CaptureViewModel {
                 try await recorder.start()
                 recordingStartDate = Date()
                 startTimer()
-                // Pre-warm Whisper while user is speaking
-                try? await whisper.loadIfNeeded()
+                // Pre-warm the on-device speech model while the user is speaking
+                try? await speech.prepareIfNeeded()
             } catch {
                 state = .idle
             }
@@ -129,7 +135,7 @@ final class CaptureViewModel {
 
             var transcript = ""
             if let url {
-                transcript = (try? await whisper.transcribe(url: url)) ?? ""
+                transcript = (try? await speech.transcribe(url: url)) ?? ""
                 try? FileManager.default.removeItem(at: url)
             }
 

@@ -14,7 +14,7 @@ struct RecordingView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("transcript · whisper base")
+                        Text("transcript · on-device")
                             .font(.jetbrainsMono(size: 10))
                             .foregroundStyle(Color.relayFaint)
                             .tracking(1.2)

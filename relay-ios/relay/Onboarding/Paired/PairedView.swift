@@ -43,8 +43,8 @@ struct PairedView: View {
                         metadataSection
                             .padding(.top, 32)
 
-                        // Whisper progress
-                        whisperSection
+                        // On-device speech model progress
+                        modelSection
                             .padding(.top, 26)
                     }
                     .padding(.horizontal, RelaySpacing.screenHWide)
@@ -70,7 +70,7 @@ struct PairedView: View {
                 contentVisible = true
                 contentOffset = 0
             }
-            vm.startWhisperDownload()
+            vm.startModelDownload()
         }
         .onDisappear { vm.cancel() }
         .relayNavBar(status: .connected, detail: "verbunden")
@@ -118,14 +118,14 @@ struct PairedView: View {
         }
     }
 
-    private var whisperSection: some View {
+    private var modelSection: some View {
         VStack(spacing: 8) {
             HStack {
-                Text("whisper base · multilingual")
+                Text("apple speech · on-device")
                     .font(.jetbrainsMono(size: 11))
                     .foregroundStyle(Color.relayMuted)
                 Spacer()
-                Text("\(vm.whisperReceived) / \(vm.whisperTotal) MB")
+                Text("\(vm.modelReceived) / \(vm.modelTotal) MB")
                     .font(.jetbrainsMono(size: 11))
                     .foregroundStyle(Color.relayMuted)
             }
@@ -138,7 +138,7 @@ struct PairedView: View {
                         .frame(height: 3)
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Color.relaySage)
-                        .frame(width: geo.size.width * vm.whisperProgress, height: 3)
+                        .frame(width: geo.size.width * vm.modelProgress, height: 3)
                 }
             }
             .frame(height: 3)

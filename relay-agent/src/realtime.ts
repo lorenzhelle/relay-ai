@@ -23,12 +23,40 @@ export function sendToIos(payload: object): void {
 // ─── Subscription setup ───────────────────────────────────────────────────────
 
 /** CaptureEvent sent by the iOS app after a voice recording is transcribed. */
-interface CapturePayload {
+export interface CapturePayload {
   type: "capture";
   transcript: string;
   clientCaptureId: string;
   durationSeconds?: number;
   timestamp?: string;
+}
+
+/**
+ * Pure routing logic for an inbound broadcast payload from the iOS app:
+ *   - validates it's a non-empty capture
+ *   - forwards the transcript to the active InputChannel (→ Claude agent)
+ *   - acks back to iOS so the app can mark the capture as delivered
+ *
+ * Returns true when the payload was a valid capture that got routed, false
+ * otherwise. Extracted from subscribeToCaptures so it can be unit-tested
+ * without a live Supabase connection.
+ */
+export function routeCapture(
+  payload: unknown,
+  inputChannel: InputChannel,
+  send: (p: object) => void,
+): boolean {
+  const p = payload as Partial<CapturePayload> | null;
+  if (!p || p.type !== "capture" || !p.transcript) return false;
+
+  inputChannel.send(p.transcript, {
+    captureId: p.clientCaptureId,
+    duration: String(p.durationSeconds ?? ""),
+    timestamp: p.timestamp ?? new Date().toISOString(),
+  });
+
+  send({ type: "ack", clientCaptureId: p.clientCaptureId });
+  return true;
 }
 
 /**
@@ -51,27 +79,18 @@ export function subscribeToCaptures(channelId: string): void {
   supabase
     .channel(iosToPlugin)
     .on("broadcast", { event: "message" }, ({ payload }) => {
-      if (!payload || payload.type !== "capture") return;
+      if (!_inputChannel) return;
 
-      const { transcript, clientCaptureId, durationSeconds, timestamp } =
-        payload as CapturePayload;
+      const transcript = (payload as Partial<CapturePayload>)?.transcript;
+      if (transcript) {
+        console.error(
+          `[relay-agent] capture received: "${transcript.slice(0, 60)}${transcript.length > 60 ? "..." : ""}"`,
+        );
+      }
 
-      if (!transcript) return;
-
-      console.error(
-        `[relay-agent] capture received: "${transcript.slice(0, 60)}${transcript.length > 60 ? "..." : ""}"`,
-      );
-
-      // Forward transcript to whichever InputChannel is active (AgentSdkChannel
-      // or McpNotificationChannel, depending on RELAY_CHANNEL_MODE).
-      _inputChannel?.send(transcript, {
-        captureId: clientCaptureId,
-        duration: String(durationSeconds ?? ""),
-        timestamp: timestamp ?? new Date().toISOString(),
-      });
-
-      // Immediately ack so the iOS app knows the message was received
-      sendToIos({ type: "ack", clientCaptureId });
+      // Forward to the active InputChannel and ack back to iOS (pure logic in
+      // routeCapture so it can be unit-tested without a live connection).
+      routeCapture(payload, _inputChannel, sendToIos);
     })
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {

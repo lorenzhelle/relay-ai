@@ -10,6 +10,8 @@ struct Capture: Identifiable {
     var transcript: String
     var status: CaptureStatus
     var durationSeconds: Double
+    /// The agent's spoken reply, once it arrives. Displayed beneath the capture.
+    var reply: String? = nil
 
     var shortId: String {
         id.uuidString.prefix(5).lowercased()

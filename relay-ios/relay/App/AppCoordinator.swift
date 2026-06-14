@@ -66,15 +66,15 @@ final class AppCoordinator {
 struct AppCoordinatorView: View {
     @State private var coordinator = AppCoordinator()
     @State private var captureStore: CaptureStore
-    @State private var whisperService: WhisperService
+    @State private var speechService: SpeechTranscriptionService
     @State private var captureVM: CaptureViewModel
 
     init() {
         let store = CaptureStore()
-        let whisper = WhisperService()
+        let speech = SpeechTranscriptionService()
         _captureStore = State(initialValue: store)
-        _whisperService = State(initialValue: whisper)
-        _captureVM = State(initialValue: CaptureViewModel(whisper: whisper, store: store))
+        _speechService = State(initialValue: speech)
+        _captureVM = State(initialValue: CaptureViewModel(speech: speech, store: store))
     }
 
     var body: some View {

@@ -40,10 +40,10 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8796B34A2F880EA300589626 /* relay-ios */ = {
+		8796B34A2F880EA300589626 /* relay */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				8796B36B2F880EA500589626 /* Exceptions for "relay-ios" folder in "relay" target */,
+				8796B36B2F880EA500589626 /* Exceptions for "relay" folder in "relay" target */,
 			);
 			path = relay;
 			sourceTree = "<group>";

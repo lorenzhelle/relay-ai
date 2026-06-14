@@ -107,6 +107,10 @@ private struct CaptureRowView: View {
                     .tracking(-0.1)
                     .lineSpacing(3)
 
+                if let reply = capture.reply {
+                    replyBlock(reply)
+                }
+
                 statusTag
             }
         }
@@ -118,6 +122,23 @@ private struct CaptureRowView: View {
                 .frame(height: RelaySpacing.hairline)
                 .padding(.leading, RelaySpacing.screenH + 52)
         }
+    }
+
+    @ViewBuilder
+    private func replyBlock(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "arrow.turn.down.right")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(Color.relaySage)
+                .padding(.top, 3)
+            Text(text)
+                .font(.newsreader(size: 15, italic: true))
+                .foregroundStyle(Color.relayMuted)
+                .tracking(-0.1)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.top, 2)
     }
 
     @ViewBuilder
@@ -197,8 +218,9 @@ private struct HoldToSpeakButton: View {
         id: UUID(),
         timestamp: .now,
         transcript: "Mit Jan über das Pairing reden, vielleicht ein QR-Flow statt Shared Secret.",
-        status: .queued,
-        durationSeconds: 4.2
+        status: .sent,
+        durationSeconds: 4.2,
+        reply: "Notiert. Ich habe eine Aufgabe für das QR-Pairing in deiner Inbox angelegt."
     ))
     store.add(Capture(
         id: UUID(),
@@ -208,8 +230,8 @@ private struct HoldToSpeakButton: View {
         durationSeconds: 2.8
     ))
 
-    let whisper = WhisperService()
-    let captureVM = CaptureViewModel(whisper: whisper, store: store)
+    let speech = SpeechTranscriptionService()
+    let captureVM = CaptureViewModel(speech: speech, store: store)
 
     return HomeView()
         .environment(captureVM)

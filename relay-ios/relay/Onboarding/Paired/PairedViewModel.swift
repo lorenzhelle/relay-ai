@@ -4,9 +4,9 @@ import Foundation
 final class PairedViewModel {
     let result: PairingResult
 
-    var whisperProgress: Double = 0
-    var whisperReceived: Int = 0
-    let whisperTotal: Int = 152
+    var modelProgress: Double = 0
+    var modelReceived: Int = 0
+    let modelTotal: Int = 152
 
     private var downloadTask: Task<Void, Never>?
 
@@ -14,13 +14,14 @@ final class PairedViewModel {
         self.result = result
     }
 
-    func startWhisperDownload() {
-        // Simulated progress — replace with actual WhisperKit download when integrated.
+    func startModelDownload() {
+        // Simulated progress — the real on-device speech model is fetched lazily
+        // by SpeechTranscriptionService via AssetInventory on first capture.
         downloadTask = Task {
-            for mb in stride(from: 0, through: whisperTotal, by: 1) {
+            for mb in stride(from: 0, through: modelTotal, by: 1) {
                 if Task.isCancelled { break }
-                whisperReceived = mb
-                whisperProgress = Double(mb) / Double(whisperTotal)
+                modelReceived = mb
+                modelProgress = Double(mb) / Double(modelTotal)
                 try? await Task.sleep(for: .milliseconds(80))
             }
         }

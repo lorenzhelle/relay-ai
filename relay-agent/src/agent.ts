@@ -44,6 +44,11 @@ export interface AgentRunnerOptions {
 export async function runAgentLoop(opts: AgentRunnerOptions): Promise<never> {
   const { channel, channelId, pairingCode, sendToIos } = opts;
 
+  // The capture currently being processed. Set before each query() and read by
+  // the reply tool so the spoken reply can be matched back to its capture on iOS.
+  // Safe because the transcript loop processes one query() at a time.
+  let currentCaptureId: string | undefined;
+
   // ─── In-process MCP server with relay tools ───────────────────────────────
 
   const relayServer = createSdkMcpServer({
@@ -60,7 +65,13 @@ export async function runAgentLoop(opts: AgentRunnerOptions): Promise<never> {
         { message: z.string().describe("The reply text. One or two short sentences.") },
         async ({ message }) => {
           // Fire-and-forget: broadcast to iOS without awaiting TTS or ack.
-          sendToIos({ type: "speak", text: message });
+          // Include the capture id so the iOS app can attach the reply to the
+          // capture that prompted it.
+          sendToIos({
+            type: "speak",
+            text: message,
+            clientCaptureId: currentCaptureId,
+          });
           return { content: [{ type: "text", text: `Reply sent: "${message}"` }] };
         },
       ),
@@ -93,7 +104,8 @@ export async function runAgentLoop(opts: AgentRunnerOptions): Promise<never> {
 
   // ─── Transcript loop ───────────────────────────────────────────────────────
 
-  for await (const { transcript } of channel.messages()) {
+  for await (const { transcript, meta } of channel.messages()) {
+    currentCaptureId = meta.captureId;
     console.error(
       `[relay-agent] agent processing: "${transcript.slice(0, 60)}${transcript.length > 60 ? "..." : ""}"`,
     );

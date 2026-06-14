@@ -1,8 +1,6 @@
 import { query, createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import type { AgentSdkChannel } from "./input-channel.js";
-import { SUPABASE_URL, CODE_EXPIRES_MIN } from "./config.js";
-
 // ─── System prompt ────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `\
@@ -24,9 +22,6 @@ When you don't need to reply, end your turn silently after completing the task.`
 
 export interface AgentRunnerOptions {
   channel: AgentSdkChannel;
-  channelId: string;
-  pairingCode: string;
-  /** Injected by index.ts; called by the reply tool handler. */
   sendToIos: (payload: object) => void;
 }
 
@@ -36,13 +31,11 @@ export interface AgentRunnerOptions {
  *   2. Runs a query() session with the transcript as the user prompt
  *   3. Repeats for every subsequent transcript
  *
- * Each transcript gets its own independent query() call. The reply and
- * get_pairing_info tools are served via an in-process MCP server.
- *
- * The relayServer is built once and reused across all query() calls.
+ * Each transcript gets its own independent query() call. The reply tool is
+ * served via an in-process MCP server built once and reused across all calls.
  */
 export async function runAgentLoop(opts: AgentRunnerOptions): Promise<never> {
-  const { channel, channelId, pairingCode, sendToIos } = opts;
+  const { channel, sendToIos } = opts;
 
   // The capture currently being processed. Set before each query() and read by
   // the reply tool so the spoken reply can be matched back to its capture on iOS.
@@ -75,30 +68,6 @@ export async function runAgentLoop(opts: AgentRunnerOptions): Promise<never> {
           return { content: [{ type: "text", text: `Reply sent: "${message}"` }] };
         },
       ),
-
-      // ── get_pairing_info ───────────────────────────────────────────────────
-      tool(
-        "get_pairing_info",
-        "Get the current pairing code so a user can pair their iOS device with this plugin.",
-        {},
-        async () => {
-          const projectUrl = SUPABASE_URL!.replace(/\/$/, "");
-          return {
-            content: [
-              {
-                type: "text",
-                text:
-                  `Relay channel info:\n` +
-                  `  Supabase project: ${projectUrl}\n` +
-                  `  Pairing code: ${pairingCode}\n` +
-                  `  Channel ID: ${channelId}\n\n` +
-                  `Open the iOS Relay app → tap "Connect" → enter the pairing code above.\n` +
-                  `The code expires ${CODE_EXPIRES_MIN} minutes after the plugin started.`,
-              },
-            ],
-          };
-        },
-      ),
     ],
   });
 
@@ -118,7 +87,7 @@ export async function runAgentLoop(opts: AgentRunnerOptions): Promise<never> {
           mcpServers: { relay: relayServer },
           // Pre-approve relay tools so Claude can call them without a permission prompt.
           // MCP tool names follow the pattern mcp__{serverName}__{toolName}.
-          allowedTools: ["mcp__relay__reply", "mcp__relay__get_pairing_info"],
+          allowedTools: ["mcp__relay__reply"],
           permissionMode: "default",
           maxTurns: 10,
         },

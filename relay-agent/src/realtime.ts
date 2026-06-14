@@ -64,7 +64,7 @@ export function routeCapture(
  *   - outbound (`plugin-to-ios`): ack and speak messages → iOS
  *   - inbound  (`ios-to-plugin`): voice capture events ← iOS
  */
-export function subscribeToCaptures(channelId: string): void {
+export function subscribeToCaptures(channelId: string, channel: InputChannel): void {
   const { iosToPlugin, pluginToIos } = channelNames(channelId);
 
   // Outbound channel — subscribe first so it's ready before we receive captures
@@ -79,8 +79,6 @@ export function subscribeToCaptures(channelId: string): void {
   supabase
     .channel(iosToPlugin)
     .on("broadcast", { event: "message" }, ({ payload }) => {
-      if (!_inputChannel) return;
-
       const transcript = (payload as Partial<CapturePayload>)?.transcript;
       if (transcript) {
         console.error(
@@ -88,26 +86,11 @@ export function subscribeToCaptures(channelId: string): void {
         );
       }
 
-      // Forward to the active InputChannel and ack back to iOS (pure logic in
-      // routeCapture so it can be unit-tested without a live connection).
-      routeCapture(payload, _inputChannel, sendToIos);
+      routeCapture(payload, channel, sendToIos);
     })
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {
         console.error(`[relay-agent] listening on ${iosToPlugin}`);
-        // Startup announcement in MCP mode is handled by index.ts via
-        // McpNotificationChannel.announce(). No action needed here.
       }
     });
-}
-
-// ─── Init ─────────────────────────────────────────────────────────────────────
-
-let _pairingCode = "";
-let _inputChannel: InputChannel | null = null;
-
-/** Must be called before subscribeToCaptures. */
-export function initRealtime(pairingCode: string, inputChannel: InputChannel): void {
-  _pairingCode = pairingCode;
-  _inputChannel = inputChannel;
 }

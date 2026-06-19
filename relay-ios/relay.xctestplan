@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "18B26106-D3F6-4535-BFE9-79A6E559908C",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:relay.xcodeproj",
+      "identifier" : "8796B3472F880EA300589626",
+      "name" : "relay"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:relay.xcodeproj",
+        "identifier" : "8796B3582F880EA500589626",
+        "name" : "relayTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:relay.xcodeproj",
+        "identifier" : "8796B3622F880EA500589626",
+        "name" : "relayUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

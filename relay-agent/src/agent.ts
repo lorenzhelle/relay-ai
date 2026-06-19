@@ -1,4 +1,8 @@
-import { query, createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
+import {
+  query,
+  createSdkMcpServer,
+  tool,
+} from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import type { AgentSdkChannel } from "./input-channel.js";
 // ─── System prompt ────────────────────────────────────────────────────────────
@@ -55,7 +59,11 @@ export async function runAgentLoop(opts: AgentRunnerOptions): Promise<never> {
         "Send a text message back to the user's iOS Relay app. They will hear it " +
           "spoken aloud via text-to-speech. Use only when you have a result the " +
           "user asked to be told about, or need their input.",
-        { message: z.string().describe("The reply text. One or two short sentences.") },
+        {
+          message: z
+            .string()
+            .describe("The reply text. One or two short sentences."),
+        },
         async ({ message }) => {
           // Fire-and-forget: broadcast to iOS without awaiting TTS or ack.
           // Include the capture id so the iOS app can attach the reply to the
@@ -65,7 +73,9 @@ export async function runAgentLoop(opts: AgentRunnerOptions): Promise<never> {
             text: message,
             clientCaptureId: currentCaptureId,
           });
-          return { content: [{ type: "text", text: `Reply sent: "${message}"` }] };
+          return {
+            content: [{ type: "text", text: `Reply sent: "${message}"` }],
+          };
         },
       ),
     ],

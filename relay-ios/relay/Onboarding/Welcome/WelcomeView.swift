@@ -2,133 +2,116 @@ import SwiftUI
 
 struct WelcomeView: View {
     @Environment(OnboardingCoordinator.self) private var coordinator
+    @State private var status: ConnectionStatus = .idle
+
+    enum ConnectionStatus: Equatable {
+        case idle, connecting, connected, failed(String)
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             Color.relayBg.ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Display headline
-                        Text("Ein ruhiger Kanal \(Text("zu dem, was zu Hause auf dich wartet.").italic().foregroundStyle(Color.relayFaint))")
-                            .font(.newsreader(size: 40))
-                            .foregroundStyle(Color.relayInk)
-                            .lineSpacing(4)
-                            .tracking(-0.7)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        // Body
-                        Text("Relay ist ein Mikrofon. Was du sagst, geht direkt an deine Claude-Code-Instanz — ohne Telegram, ohne Umwege, über einen lokalen Channel-Plugin.")
-                            .font(.newsreader(size: 17))
-                            .foregroundStyle(Color.relayMuted)
-                            .lineSpacing(8)
-                            .tracking(-0.1)
-                            .padding(.top, 24)
-
-                        // Prerequisites card
-                        prerequisitesCard
-                            .padding(.top, 32)
-                    }
-                    .padding(.horizontal, RelaySpacing.screenHWide)
-                    .padding(.top, 20)
-                    .padding(.bottom, 180)
-                }
-            }
-            .scrollIndicators(.hidden)
-
-            OnboardBottom(
-                step: 1, total: 3,
-                primaryLabel: "Rechner ist bereit",
-                secondaryLabel: "sonst erst dort einrichten",
-                action: { coordinator.advance(to: .triggerPick) }
-            )
-        }
-        .relayNavBar(status: .offline, detail: "not paired")
-    }
-
-    private var prerequisitesCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("auf deinem Rechner · einmalig")
-                    .font(.jetbrainsMono(size: 10))
-                    .foregroundStyle(Color.relayFaint)
-                    .tracking(1.2)
-                    .textCase(.uppercase)
+            VStack(spacing: 24) {
                 Spacer()
-                Text("~3 min")
+
+                Text("Supabase Connection Test")
+                    .font(.newsreader(size: 28))
+                    .foregroundStyle(Color.relayInk)
+                    .tracking(-0.5)
+
+                statusView
+
+                Button(action: testConnection) {
+                    Text(status == .connecting ? "Connecting…" : "Test Connection")
+                        .font(.relaySans(size: 15, weight: .medium))
+                        .foregroundStyle(Color.relayOnInk)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.relayInk)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .disabled(status    == .connecting)
+
+                Spacer()
+            }
+            .padding(.horizontal, RelaySpacing.screenHWide)
+
+            if case .connected = status {
+                OnboardBottom(
+                    step: 1, total: 2,
+                    primaryLabel: "Weiter",
+                    secondaryLabel: nil,
+                    action: { coordinator.advance(to: .channelId(UUID().uuidString.lowercased())) }
+                )
+            }
+        }
+        .relayNavBar(status: .offline, detail: "test")
+    }
+
+    @ViewBuilder
+    private var statusView: some View {
+        switch status {
+        case .idle:
+            Text("Noch kein Test durchgeführt")
+                .font(.jetbrainsMono(size: 12))
+                .foregroundStyle(Color.relayFaint)
+        case .connecting:
+            HStack(spacing: 8) {
+                ProgressView()
+                    .tint(Color.relayMuted)
+                Text("Verbinde mit Supabase…")
+                    .font(.jetbrainsMono(size: 12))
+                    .foregroundStyle(Color.relayMuted)
+            }
+        case .connected:
+            Label("Verbindung erfolgreich", systemImage: "checkmark.circle.fill")
+                .font(.jetbrainsMono(size: 12))
+                .foregroundStyle(Color.relayAmber)
+        case .failed(let msg):
+            VStack(spacing: 6) {
+                Label("Verbindung fehlgeschlagen", systemImage: "xmark.circle.fill")
+                    .font(.jetbrainsMono(size: 12))
+                    .foregroundStyle(.red)
+                Text(msg)
                     .font(.jetbrainsMono(size: 10))
                     .foregroundStyle(Color.relayFaint)
+                    .multilineTextAlignment(.center)
             }
-            .padding(.bottom, 14)
-
-            VStack(alignment: .leading, spacing: 14) {
-                prerequisiteRow(
-                    number: "1",
-                    text: "Claude Code installiert",
-                    hint: "claude muss im PATH erreichbar sein"
-                )
-                prerequisiteRow(
-                    number: "2",
-                    text: "Bun installiert",
-                    hint: "bun.sh · wird vom relay-agent gebraucht"
-                )
-                prerequisiteRow(
-                    number: "3",
-                    text: "relay-agent/.env eingerichtet",
-                    hint: "SUPABASE_URL + SUPABASE_ANON_KEY aus dem Supabase-Dashboard"
-                )
-            }
-
-            Divider()
-                .background(Color.relayHair)
-                .padding(.top, 14)
-
-            Text("Die Channel-ID wird beim Setup angezeigt — relay-agent erst danach starten")
-                .font(.jetbrainsMono(size: 10))
-                .foregroundStyle(Color.relayFaint)
-                .tracking(0.3)
-                .lineSpacing(4)
-                .padding(.top, 10)
-        }
-        .padding(RelaySpacing.cardPad)
-        .overlay {
-            RoundedRectangle(cornerRadius: RelaySpacing.cardRadius)
-                .strokeBorder(style: StrokeStyle(lineWidth: 0.5, dash: [4, 3]))
-                .foregroundStyle(Color.relayHair2)
         }
     }
 
-    private func prerequisiteRow(number: String, text: String? = nil, command: String? = nil, hint: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text(number)
-                .font(.jetbrainsMono(size: 10.5))
-                .foregroundStyle(Color.relayFaint)
-                .frame(width: 12, alignment: .leading)
-                .padding(.top, 2)
-
-            VStack(alignment: .leading, spacing: 4) {
-                if let command {
-                    Text(command)
-                        .font(.jetbrainsMono(size: 11.5))
-                        .foregroundStyle(Color.relayInk)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if let text {
-                    Text(text)
-                        .font(.newsreader(size: 14))
-                        .foregroundStyle(Color.relayInk)
-                        .lineSpacing(4)
-                        .tracking(-0.05)
-                }
-
-                Text(hint)
-                    .font(.jetbrainsMono(size: 10))
-                    .foregroundStyle(Color.relayFaint)
-                    .lineSpacing(3)
-                    .tracking(0.2)
-                    .fixedSize(horizontal: false, vertical: true)
+    private func testConnection() {
+        status = .connecting
+        Task {
+            do {
+                try await checkSupabaseConnection()
+                await MainActor.run { status = .connected }
+            } catch {
+                await MainActor.run { status = .failed(error.localizedDescription) }
             }
+        }
+    }
+
+    private func checkSupabaseConnection() async throws {
+        let baseURL = SupabaseConfig.url
+        print("Testing Supabase connection to \(baseURL.host ?? "unknown host")…")
+        guard baseURL.host != "your-project.supabase.co" else {
+            throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "Config.xcconfig: SUP_URL not set"])
+        }
+        guard !SupabaseConfig.anonKey.isEmpty else {
+            throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "Config.xcconfig: SUP_ANON_KEY not set"])
+        }
+
+        let url = baseURL.appending(path: "/rest/v1/")
+        var request = URLRequest(url: url, timeoutInterval: 8)
+        request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(SupabaseConfig.anonKey)", forHTTPHeaderField: "Authorization")
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "\(baseURL.host ?? "") → HTTP \(code)"])
         }
     }
 }

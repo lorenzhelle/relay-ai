@@ -86,18 +86,41 @@ Claude Code channels work over MCP using `notifications/claude/channel` events. 
 
 ```
 relay-agent/
-├── index.ts          # Boot: wires modules together and starts the server
+├── index.ts          # Boot: wires modules together and starts the agent loop
+├── local.ts          # Local test mode — stdin/stdout, no Supabase needed
 ├── src/
+│   ├── agent.ts      # Agent loop: processes transcripts, exposes reply tool
 │   ├── config.ts     # Env vars, pairing-code generation, channel-ID persistence
+│   ├── input-channel.ts  # Queue bridging Supabase events into the agent loop
 │   ├── supabase.ts   # Supabase client + pairing-code registration
-│   ├── mcp.ts        # MCP server, tool definitions, Claude channel helpers
 │   └── realtime.ts   # Supabase Realtime subscriptions (inbound/outbound)
 ├── .env.example      # Environment template
 ├── .channel-id       # Auto-generated UUID (gitignored) — persists the channel across restarts
 └── package.json
 ```
 
-> **Development note**: You can't run this plugin standalone with `bun run index.ts` and have it do anything useful — it communicates with Claude Code over stdio and must be spawned by Claude Code. Use `--dangerously-load-development-channels server:relay` to run it in a real session, or `bun --watch run index.ts` as a syntax/import check only.
+## Local test mode
+
+To test the agent logic without an iOS device or Supabase, run:
+
+```bash
+bun run local
+```
+
+Type a message and press Enter. The agent processes it and prints the reply directly in the terminal — no pairing code, no Supabase connection needed (but `ANTHROPIC_API_KEY` must be set).
+
+```
+[relay-agent] local test mode
+> remind me to buy milk
+[agent] Got it — I'll remind you to buy milk.
+
+> what's the weather in Berlin?
+[agent] It's 18 °C and partly cloudy in Berlin right now.
+
+>
+```
+
+Press `Ctrl-D` to quit.
 
 ## Message protocol
 

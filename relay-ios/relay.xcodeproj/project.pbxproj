@@ -24,6 +24,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AA000001000000000000AA01 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.xcconfig; path = relay/Resources/Config.xcconfig; sourceTree = "<group>"; };
+		877EB29F2FE5AD3600B5B3EE /* relay.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = relay.xctestplan; sourceTree = "<group>"; };
 		8796B3482F880EA300589626 /* relay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = relay.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8796B3592F880EA500589626 /* relayTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = relayTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8796B3632F880EA500589626 /* relayUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = relayUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -88,6 +90,7 @@
 		8796B33F2F880EA300589626 = {
 			isa = PBXGroup;
 			children = (
+				877EB29F2FE5AD3600B5B3EE /* relay.xctestplan */,
 				8796B34A2F880EA300589626 /* relay */,
 				8796B35C2F880EA500589626 /* relayTests */,
 				8796B3662F880EA500589626 /* relayUITests */,
@@ -281,6 +284,7 @@
 
 /* Begin XCBuildConfiguration section */
 		8796B36D2F880EA500589626 /* Debug */ = {
+			baseConfigurationReference = AA000001000000000000AA01 /* Config.xcconfig */;
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -325,6 +329,7 @@
 			name = Debug;
 		};
 		8796B36E2F880EA500589626 /* Release */ = {
+			baseConfigurationReference = AA000001000000000000AA01 /* Config.xcconfig */;
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;

@@ -2,11 +2,13 @@ import Foundation
 
 /// Supabase project credentials read from Info.plist (set via Config.xcconfig).
 enum SupabaseConfig {
-    /// Supabase project base URL. Set the `SUP_URL` key in Config.xcconfig.
+    /// Supabase project base URL. Set the `SUP_HOST` key in Config.xcconfig
+    /// (host only, no https:// — xcconfig treats // as a comment).
     static let url: URL = {
-        if let raw = Bundle.main.object(forInfoDictionaryKey: "SUP_URL") as? String,
-           let url = URL(string: raw),
-           !raw.hasPrefix("$(") {
+        if let host = Bundle.main.object(forInfoDictionaryKey: "SUP_HOST") as? String,
+           !host.hasPrefix("$("),
+           !host.isEmpty,
+           let url = URL(string: "https://\(host)") {
             return url
         }
         return URL(string: "https://your-project.supabase.co")!

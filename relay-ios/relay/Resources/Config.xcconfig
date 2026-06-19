@@ -2,8 +2,8 @@
 // Add this file to .gitignore — fill in your project-specific values locally.
 // Reference these vars in Info.plist as $(SUP_URL) etc.
 
-// Supabase project URL (no trailing slash)
-SUP_URL = https://dhokseoufjixxtjmummi.supabase.co
+// Supabase project host (no https://, no trailing slash — xcconfig treats // as comment)
+SUP_HOST = dhokseoufjixxtjmummi.supabase.co
 
 // Supabase anon (public) key
 SUP_ANON_KEY = sb_publishable_ZIapZyadmJaVmkOZ7LwFpQ_d4vqBCkr

@@ -53,6 +53,9 @@ final class AppCoordinator {
             break
         case .speak(_, let text):
             speak(text)
+        case .text:
+            // Text-only reply: displayed via CaptureViewModel's handler; no TTS.
+            break
         }
     }
 

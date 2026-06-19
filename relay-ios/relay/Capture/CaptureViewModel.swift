@@ -32,7 +32,7 @@ final class CaptureViewModel {
             case .ack(let captureId):
                 guard let id = UUID(uuidString: captureId) else { return }
                 store?.updateStatus(of: id, to: .sent)
-            case .speak(let captureId, let text):
+            case .speak(let captureId, let text), .text(let captureId, let text):
                 store?.setReply(text, for: captureId.flatMap(UUID.init))
             }
         }

@@ -20,6 +20,9 @@ enum RelayEvent {
     /// Plugin wants iOS to speak a message aloud (and display it).
     /// `clientCaptureId` is nil when the reply isn't tied to a specific capture.
     case speak(clientCaptureId: String?, text: String)
+    /// Plugin completed the task in text-only mode — display the reply without TTS.
+    /// `clientCaptureId` is nil when the reply isn't tied to a specific capture.
+    case text(clientCaptureId: String?, text: String)
 }
 
 // MARK: - RelayCaptureService
@@ -125,7 +128,7 @@ final class RelayCaptureService {
         sendBroadcast(
             event: "message",
             payload: payload,
-            on: "relay:\(channelId):ios-to-plugin"
+            on: "relay:\(channelId)"
         )
     }
 
@@ -151,25 +154,15 @@ final class RelayCaptureService {
         webSocketTask = task
         task.resume()
 
-        // Join both channels (Phoenix protocol requires joining before sending or receiving)
-        let replyChannel = "relay:\(channelId):plugin-to-ios"
-        let joinReply: [String: Any] = [
-            "topic": "realtime:\(replyChannel)",
+        // Join the single shared channel (Phoenix protocol requires joining before sending or receiving)
+        let sharedChannel = "relay:\(channelId)"
+        let joinMsg: [String: Any] = [
+            "topic": "realtime:\(sharedChannel)",
             "event": "phx_join",
             "payload": ["config": ["broadcast": ["self": false]]],
             "ref": "1",
         ]
-        sendRaw(json: joinReply)
-
-        // Must join the send channel too — server drops broadcasts from non-members
-        let sendChannel = "relay:\(channelId):ios-to-plugin"
-        let joinSend: [String: Any] = [
-            "topic": "realtime:\(sendChannel)",
-            "event": "phx_join",
-            "payload": ["config": ["broadcast": ["self": false]]],
-            "ref": "2",
-        ]
-        sendRaw(json: joinSend)
+        sendRaw(json: joinMsg)
 
         isConnected = true
         receiveLoop()
@@ -217,6 +210,10 @@ final class RelayCaptureService {
             // answers a specific capture, but a bare reply is still valid.
             let id = payload["clientCaptureId"] as? String
             relayEvent = .speak(clientCaptureId: id, text: text_)
+        case "text":
+            guard let text_ = payload["text"] as? String else { return }
+            let id = payload["clientCaptureId"] as? String
+            relayEvent = .text(clientCaptureId: id, text: text_)
         default:
             return
         }

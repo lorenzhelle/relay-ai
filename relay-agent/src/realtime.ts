@@ -2,13 +2,10 @@ import { type RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase.js";
 import type { InputChannel } from "./input-channel.js";
 
-// ─── Channel names ────────────────────────────────────────────────────────────
+// ─── Channel name ─────────────────────────────────────────────────────────────
 
-function channelNames(channelId: string) {
-  return {
-    iosToPlugin: `relay:${channelId}:ios-to-plugin`,
-    pluginToIos: `relay:${channelId}:plugin-to-ios`,
-  };
+function channelName(channelId: string): string {
+  return `relay:${channelId}`;
 }
 
 // ─── Outbound (plugin → iOS) ──────────────────────────────────────────────────
@@ -63,24 +60,16 @@ export function routeCapture(
 }
 
 /**
- * Opens the two Supabase Realtime broadcast channels:
- *   - outbound (`plugin-to-ios`): ack and speak messages → iOS
- *   - inbound  (`ios-to-plugin`): voice capture events ← iOS
+ * Opens a single Supabase Realtime broadcast channel shared by iOS and the
+ * agent. iOS sends `capture` events; the agent sends `ack`, `speak`, and
+ * `text` events. Supabase does not echo your own broadcasts back to you, so
+ * both sides can safely share one channel without creating loops.
  */
 export function subscribeToCaptures(channelId: string, channel: InputChannel): void {
-  const { iosToPlugin, pluginToIos } = channelNames(channelId);
+  const name = channelName(channelId);
 
-  // Outbound channel — subscribe first so it's ready before we receive captures
-  outboundChannel = supabase.channel(pluginToIos);
-  outboundChannel.subscribe((status) => {
-    if (status === "SUBSCRIBED") {
-      console.error(`[relay-agent] publishing replies on ${pluginToIos}`);
-    }
-  });
-
-  // Inbound channel — receives voice transcripts from the iOS app
-  supabase
-    .channel(iosToPlugin)
+  outboundChannel = supabase
+    .channel(name)
     .on("broadcast", { event: "message" }, ({ payload }) => {
       const transcript = (payload as Partial<CapturePayload>)?.transcript;
       if (transcript) {
@@ -88,12 +77,11 @@ export function subscribeToCaptures(channelId: string, channel: InputChannel): v
           `[relay-agent] capture received: "${transcript.slice(0, 60)}${transcript.length > 60 ? "..." : ""}"`,
         );
       }
-
       routeCapture(payload, channel, sendToIos);
     })
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {
-        console.error(`[relay-agent] listening on ${iosToPlugin}`);
+        console.error(`[relay-agent] channel ready: ${name}`);
       }
     });
 }

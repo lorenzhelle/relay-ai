@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct RecordingView: View {
-    let transcript: String
     @Environment(CaptureViewModel.self) private var vm
     @State private var caretVisible: Bool = true
 
@@ -14,19 +13,13 @@ struct RecordingView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("transcript · on-device")
-                            .font(.jetbrainsMono(size: 10))
-                            .foregroundStyle(Color.relayFaint)
-                            .tracking(1.2)
-                            .textCase(.uppercase)
+                        transcriptLabel
 
                         HStack(alignment: .bottom, spacing: 0) {
-                            Text(transcript.isEmpty ? "…" : transcript)
-                                .font(.newsreader(size: 22))
-                                .foregroundStyle(Color.relayInk)
-                                .tracking(-0.2)
-                                .lineSpacing(6)
+                            transcriptText
+                                .animation(.easeOut(duration: 0.1), value: vm.speech.liveTranscript)
 
+                            // Blinking caret
                             Rectangle()
                                 .fill(Color.relayAmber)
                                 .frame(width: 2, height: 24)
@@ -41,6 +34,7 @@ struct RecordingView: View {
                     .padding(.bottom, 220)
                 }
                 .scrollIndicators(.hidden)
+                .defaultScrollAnchor(.bottom)
             }
 
             VStack(spacing: 14) {
@@ -73,6 +67,47 @@ struct RecordingView: View {
                 try? await Task.sleep(for: .milliseconds(500))
                 caretVisible.toggle()
             }
+        }
+    }
+
+    // MARK: - Sub-views
+
+    @ViewBuilder
+    private var transcriptLabel: some View {
+        switch vm.speech.modelStatus {
+        case .unavailable:
+            Label("speech model unavailable — no transcript", systemImage: "waveform.slash")
+                .font(.jetbrainsMono(size: 10))
+                .foregroundStyle(Color.relayAmber)
+                .tracking(0.8)
+                .textCase(.uppercase)
+        default:
+            let lang = vm.speech.resolvedLanguageName?.lowercased() ?? "on-device"
+            Text("transcript · \(lang)")
+                .font(.jetbrainsMono(size: 10))
+                .foregroundStyle(Color.relayFaint)
+                .tracking(1.2)
+                .textCase(.uppercase)
+        }
+    }
+
+    @ViewBuilder
+    private var transcriptText: some View {
+        let live = vm.speech.liveTranscript
+        switch vm.speech.modelStatus {
+        case .unavailable:
+            // Model not available: no text to show
+            Text("transcription unavailable")
+                .font(.newsreader(size: 22, italic: true))
+                .foregroundStyle(Color.relayFaint)
+                .tracking(-0.2)
+                .lineSpacing(6)
+        default:
+            Text(live.isEmpty ? "…" : live)
+                .font(.newsreader(size: 22))
+                .foregroundStyle(Color.relayInk)
+                .tracking(-0.2)
+                .lineSpacing(6)
         }
     }
 

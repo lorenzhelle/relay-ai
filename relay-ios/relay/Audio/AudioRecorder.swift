@@ -5,16 +5,17 @@ import AVFoundation
 @Observable
 final class AudioRecorder {
     private(set) var isRecording: Bool = false
-    private(set) var audioLevel: Float = 0   // 0–1, normalized for waveform
+    private(set) var audioLevel: Float = 0   // 0–1, normalised for waveform
 
     private var engine = AVAudioEngine()
     private var outputURL: URL?
     private var audioFile: AVAudioFile?
-    private var levelTimer: Timer?
 
     // MARK: - Start
 
-    func start() async throws {
+    /// Begin recording.  Buffers are forwarded to `speechService` in real time so
+    /// `SpeechAnalyzer` can transcribe while the user is still speaking.
+    func start(speechService: SpeechTranscriptionService) async throws {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement, options: .duckOthers)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
@@ -25,21 +26,28 @@ final class AudioRecorder {
         outputURL = url
 
         let inputNode = engine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
+        let nativeFormat = inputNode.outputFormat(forBus: 0)
 
-        audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
+        audioFile = try AVAudioFile(forWriting: url, settings: nativeFormat.settings)
         let file = audioFile!
 
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: nativeFormat) { [weak self] buffer, _ in
+            // Write to disk for debugging / potential fallback.
             try? file.write(from: buffer)
-            guard let channelData = buffer.floatChannelData?[0] else { return }
-            let frameLength = Int(buffer.frameLength)
-            var sum: Float = 0
-            for i in 0..<frameLength { sum += channelData[i] * channelData[i] }
-            let rms = sqrtf(sum / Float(frameLength))
-            let db = 20 * log10f(max(rms, 1e-6))
-            let normalized = Float(max(0, min(1, (db + 60) / 60)))
-            Task { @MainActor [weak self] in self?.audioLevel = normalized }
+
+            // Compute normalised level for waveform animation.
+            if let channelData = buffer.floatChannelData?[0] {
+                let frameLength = Int(buffer.frameLength)
+                var sum: Float = 0
+                for i in 0..<frameLength { sum += channelData[i] * channelData[i] }
+                let rms = sqrtf(sum / Float(frameLength))
+                let db = 20 * log10f(max(rms, 1e-6))
+                let normalized = Float(max(0, min(1, (db + 60) / 60)))
+                Task { @MainActor [weak self] in self?.audioLevel = normalized }
+            }
+
+            // Forward to SpeechAnalyzer on the MainActor.
+            Task { @MainActor in speechService.streamBuffer(buffer) }
         }
 
         engine.prepare()
@@ -73,5 +81,4 @@ final class AudioRecorder {
         audioLevel = 0
         try? AVAudioSession.sharedInstance().setActive(false)
     }
-
 }

@@ -4,7 +4,7 @@ import UIKit
 enum CaptureFlowState {
     case idle
     case listening
-    case recording(transcript: String)
+    case recording
     case transcribing
     case captured(Capture)
 }
@@ -19,24 +19,19 @@ final class CaptureViewModel {
     let speech: SpeechTranscriptionService
     let store: CaptureStore
 
-    private var transcribeTask: Task<Void, Never>?
+    private var captureTask: Task<Void, Never>?
     private var timerTask: Task<Void, Never>?
     private var recordingStartDate: Date?
 
     init(speech: SpeechTranscriptionService, store: CaptureStore) {
         self.speech = speech
         self.store = store
-        // Update capture status when the plugin acks a delivery.
-        // No deregistration needed: CaptureViewModel is @State in AppCoordinatorView
-        // and lives for the entire app session.
         RelayCaptureService.shared.addHandler { [weak store] event in
             switch event {
             case .ack(let captureId):
                 guard let id = UUID(uuidString: captureId) else { return }
                 store?.updateStatus(of: id, to: .sent)
             case .speak(let captureId, let text):
-                // Display the agent's reply in the timeline (AppCoordinator
-                // separately speaks it aloud via TTS).
                 store?.setReply(text, for: captureId.flatMap(UUID.init))
             }
         }
@@ -46,28 +41,30 @@ final class CaptureViewModel {
 
     func startCapture() {
         guard case .idle = state else { return }
-        state = .listening   // set synchronously to block re-entrant calls
+        state = .listening
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
-        transcribeTask = Task {
+        captureTask = Task {
             do {
-                try await recorder.start()
+                // Prepare model and start session concurrently with mic start so the
+                // first buffer has somewhere to go by the time the engine fires up.
+                async let _ = speech.prepareIfNeeded()
+                try await speech.startSession()
+                try await recorder.start(speechService: speech)
                 recordingStartDate = Date()
                 startTimer()
-                // Pre-warm the on-device speech model while the user is speaking
-                try? await speech.prepareIfNeeded()
             } catch {
+                speech.cancelSession()
                 state = .idle
             }
         }
     }
 
-    // MARK: - Stop (release gesture or tap-to-send)
+    // MARK: - Stop
 
     func stopCapture() {
         switch state {
         case .listening, .recording:
-            // Require at least 0.5s of recording before committing
             let duration = recordingStartDate.map { Date().timeIntervalSince($0) } ?? 0
             if duration < 0.5 { cancelCapture() } else { commitStop() }
         default:
@@ -78,14 +75,15 @@ final class CaptureViewModel {
     // MARK: - Cancel
 
     func cancelCapture() {
-        transcribeTask?.cancel()
+        captureTask?.cancel()
         timerTask?.cancel()
         recorder.cancel()
+        speech.cancelSession()
         state = .idle
         elapsedSeconds = 0
     }
 
-    // MARK: - Confirm (called from AckView after 2s or tap-to-keep)
+    // MARK: - Confirm
 
     func confirmCapture() {
         guard case .captured(let capture) = state else { return }
@@ -99,6 +97,23 @@ final class CaptureViewModel {
         Task { await sendCapture(capture) }
     }
 
+    func dismissAck() {
+        guard case .captured(let capture) = state else { return }
+        store.add(capture)
+        state = .idle
+        elapsedSeconds = 0
+    }
+
+    // MARK: - Called from listening view when audio level crosses threshold
+
+    func promoteToRecordingIfListening() {
+        if case .listening = state, recorder.audioLevel > 0.05 {
+            state = .recording
+        }
+    }
+
+    // MARK: - Private
+
     private func sendCapture(_ capture: Capture) async {
         RelayCaptureService.shared.sendCapture(
             transcript: capture.transcript,
@@ -108,43 +123,20 @@ final class CaptureViewModel {
         )
     }
 
-    func dismissAck() {
-        guard case .captured(let capture) = state else { return }
-        store.add(capture)
-        state = .idle
-        elapsedSeconds = 0
-    }
-
-    // MARK: - Called from listening state when speech starts
-
-    func speechDetected() {
-        guard case .listening = state else { return }
-        state = .recording(transcript: "")
-    }
-
-    // MARK: - Private
-
     private func commitStop() {
         timerTask?.cancel()
         let duration = recordingStartDate.map { Date().timeIntervalSince($0) } ?? 0
         state = .transcribing
 
-        let currentDuration = duration
-        transcribeTask = Task {
-            let url = recorder.stop()
-
-            var transcript = ""
-            if let url {
-                transcript = (try? await speech.transcribe(url: url)) ?? ""
-                try? FileManager.default.removeItem(at: url)
-            }
-
+        captureTask = Task {
+            _ = recorder.stop()
+            let transcript = (try? await speech.finishSession()) ?? ""
             let capture = Capture(
                 id: UUID(),
                 timestamp: Date(),
                 transcript: transcript.isEmpty ? "(no speech detected)" : transcript,
                 status: .queued,
-                durationSeconds: currentDuration
+                durationSeconds: duration
             )
             state = .captured(capture)
         }
@@ -157,16 +149,7 @@ final class CaptureViewModel {
                 try? await Task.sleep(for: .seconds(1))
                 if Task.isCancelled { break }
                 elapsedSeconds += 1
-                // Auto-transition listening → recording if no speech detected after 0.5s
-                // (actual speech detection is via audioLevel threshold in the view)
             }
-        }
-    }
-
-    // Called from ListeningView waveform to promote to recording state
-    func promoteToRecordingIfListening() {
-        if case .listening = state, recorder.audioLevel > 0.05 {
-            state = .recording(transcript: "…")
         }
     }
 }

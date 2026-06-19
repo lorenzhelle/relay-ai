@@ -19,8 +19,8 @@ struct CaptureFlowView: View {
                     ListeningView()
                         .transition(.opacity)
 
-                case .recording(let transcript):
-                    RecordingView(transcript: transcript)
+                case .recording:
+                    RecordingView()
                         .transition(.opacity)
 
                 case .transcribing:
@@ -38,11 +38,11 @@ struct CaptureFlowView: View {
 
     private var stateKey: String {
         switch vm.state {
-        case .idle:                    return "idle"
-        case .listening:               return "listening"
-        case .recording:               return "recording"
-        case .transcribing:            return "transcribing"
-        case .captured:                return "captured"
+        case .idle:          return "idle"
+        case .listening:     return "listening"
+        case .recording:     return "recording"
+        case .transcribing:  return "transcribing"
+        case .captured:      return "captured"
         }
     }
 }

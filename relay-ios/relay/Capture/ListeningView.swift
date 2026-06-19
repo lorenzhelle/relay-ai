@@ -21,10 +21,22 @@ struct ListeningView: View {
                     .scaleEffect(pulse ? 1.15 : 1.0)
                     .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulse)
 
+                // Model status hint — only shown when there's a problem
+                modelStatusView
+
                 Text("listening…")
                     .font(.newsreader(size: 22, italic: true))
                     .foregroundStyle(Color.relayFaint)
                     .tracking(-0.2)
+
+                // Language badge — shown once the model is ready
+                if let lang = vm.speech.resolvedLanguageName {
+                    Text(lang.lowercased())
+                        .font(.jetbrainsMono(size: 10))
+                        .foregroundStyle(Color.relayFaint)
+                        .tracking(1.2)
+                        .textCase(.uppercase)
+                }
 
                 WaveformView(level: max(0.15, vm.recorder.audioLevel), tint: .relayAmber, active: true)
             }
@@ -58,6 +70,36 @@ struct ListeningView: View {
         .onAppear { pulse = true }
         .onChange(of: vm.recorder.audioLevel) { _, level in
             if level > 0.05 { vm.promoteToRecordingIfListening() }
+        }
+    }
+
+    @ViewBuilder
+    private var modelStatusView: some View {
+        switch vm.speech.modelStatus {
+        case .checking:
+            HStack(spacing: 6) {
+                ProgressView()
+                    .scaleEffect(0.7)
+                Text("loading speech model…")
+                    .font(.jetbrainsMono(size: 10))
+                    .foregroundStyle(Color.relayFaint)
+            }
+
+        case .unavailable(let reason):
+            VStack(spacing: 4) {
+                Label("speech model unavailable", systemImage: "waveform.slash")
+                    .font(.jetbrainsMono(size: 10))
+                    .foregroundStyle(Color.relayAmber)
+                Text(reason)
+                    .font(.jetbrainsMono(size: 9))
+                    .foregroundStyle(Color.relayFaint)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .padding(.horizontal, 24)
+
+        default:
+            EmptyView()
         }
     }
 

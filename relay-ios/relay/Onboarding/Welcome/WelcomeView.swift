@@ -95,23 +95,21 @@ struct WelcomeView: View {
 
     private func checkSupabaseConnection() async throws {
         let baseURL = SupabaseConfig.url
-        print("Testing Supabase connection to \(baseURL.host ?? "unknown host")…")
         guard baseURL.host != "your-project.supabase.co" else {
-            throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "Config.xcconfig: SUP_URL not set"])
+            throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "SUP_HOST not set in Config.xcconfig"])
         }
         guard !SupabaseConfig.anonKey.isEmpty else {
-            throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "Config.xcconfig: SUP_ANON_KEY not set"])
+            throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "SUP_ANON_KEY not set in Config.xcconfig"])
         }
 
-        let url = baseURL.appending(path: "/rest/v1/")
+        let url = baseURL.appending(path: "/auth/v1/health")
         var request = URLRequest(url: url, timeoutInterval: 8)
         request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(SupabaseConfig.anonKey)", forHTTPHeaderField: "Authorization")
 
         let (_, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "\(baseURL.host ?? "") → HTTP \(code)"])
+        // Any HTTP response means the server is reachable
+        guard response is HTTPURLResponse else {
+            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "No HTTP response"])
         }
     }
 }

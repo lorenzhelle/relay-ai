@@ -4,6 +4,7 @@ struct HomeView: View {
     @Environment(AppCoordinator.self) private var appCoordinator
     @Environment(CaptureViewModel.self) private var captureVM
     @Environment(CaptureStore.self) private var store
+    @Environment(RelaySettings.self) private var settings
     @State private var showSettings = false
 
     var body: some View {
@@ -45,6 +46,7 @@ struct HomeView: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheet()
                 .environment(appCoordinator)
+                .environment(settings)
         }
     }
 

@@ -18,6 +18,7 @@ final class CaptureViewModel {
     let recorder: AudioRecorder = AudioRecorder()
     let speech: SpeechTranscriptionService
     let store: CaptureStore
+    var settings: RelaySettings?
 
     private var captureTask: Task<Void, Never>?
     private var timerTask: Task<Void, Never>?
@@ -119,7 +120,8 @@ final class CaptureViewModel {
             transcript: capture.transcript,
             clientCaptureId: capture.id,
             durationSeconds: capture.durationSeconds,
-            timestamp: capture.timestamp
+            timestamp: capture.timestamp,
+            voiceReply: settings?.voiceMode ?? true
         )
     }
 

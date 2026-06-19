@@ -29,6 +29,8 @@ export interface CapturePayload {
   clientCaptureId: string;
   durationSeconds?: number;
   timestamp?: string;
+  /** When false, the agent should work silently without sending a spoken reply. Defaults to true. */
+  voiceReply?: boolean;
 }
 
 /**
@@ -53,6 +55,7 @@ export function routeCapture(
     captureId: p.clientCaptureId,
     duration: String(p.durationSeconds ?? ""),
     timestamp: p.timestamp ?? new Date().toISOString(),
+    voiceReply: p.voiceReply !== false, // default true
   });
 
   send({ type: "ack", clientCaptureId: p.clientCaptureId });

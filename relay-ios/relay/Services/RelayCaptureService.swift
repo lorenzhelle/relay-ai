@@ -9,6 +9,8 @@ private struct CapturePayload: Encodable {
     let transcript: String
     let durationSeconds: Double
     let timestamp: String
+    /// When false the agent should process silently without sending a spoken reply.
+    let voiceReply: Bool
 }
 
 /// Events the iOS app can receive back from the plugin.
@@ -107,7 +109,8 @@ final class RelayCaptureService {
         transcript: String,
         clientCaptureId: UUID,
         durationSeconds: Double,
-        timestamp: Date
+        timestamp: Date,
+        voiceReply: Bool
     ) {
         guard let channelId else { return }
 
@@ -115,7 +118,8 @@ final class RelayCaptureService {
             clientCaptureId: clientCaptureId.uuidString,
             transcript: transcript,
             durationSeconds: durationSeconds,
-            timestamp: ISO8601DateFormatter().string(from: timestamp)
+            timestamp: ISO8601DateFormatter().string(from: timestamp),
+            voiceReply: voiceReply
         )
 
         sendBroadcast(
@@ -147,15 +151,25 @@ final class RelayCaptureService {
         webSocketTask = task
         task.resume()
 
-        // Join the plugin→iOS reply channel (Phoenix protocol)
+        // Join both channels (Phoenix protocol requires joining before sending or receiving)
         let replyChannel = "relay:\(channelId):plugin-to-ios"
-        let joinMsg: [String: Any] = [
+        let joinReply: [String: Any] = [
             "topic": "realtime:\(replyChannel)",
             "event": "phx_join",
             "payload": ["config": ["broadcast": ["self": false]]],
             "ref": "1",
         ]
-        sendRaw(json: joinMsg)
+        sendRaw(json: joinReply)
+
+        // Must join the send channel too — server drops broadcasts from non-members
+        let sendChannel = "relay:\(channelId):ios-to-plugin"
+        let joinSend: [String: Any] = [
+            "topic": "realtime:\(sendChannel)",
+            "event": "phx_join",
+            "payload": ["config": ["broadcast": ["self": false]]],
+            "ref": "2",
+        ]
+        sendRaw(json: joinSend)
 
         isConnected = true
         receiveLoop()
@@ -184,7 +198,11 @@ final class RelayCaptureService {
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let event = json["event"] as? String,
             event == "broadcast",
-            let payload = json["payload"] as? [String: Any],
+            // Supabase JS SDK wraps broadcasts in a Phoenix envelope:
+            // payload = { type:"broadcast", event:"message", payload: <actual data> }
+            // so we need to unwrap one extra level.
+            let outerPayload = json["payload"] as? [String: Any],
+            let payload = outerPayload["payload"] as? [String: Any],
             let type_ = payload["type"] as? String
         else { return }
 

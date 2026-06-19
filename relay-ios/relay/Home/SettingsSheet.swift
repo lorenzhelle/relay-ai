@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsSheet: View {
     @Environment(AppCoordinator.self) private var appCoordinator
+    @Environment(RelaySettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
     @State private var showResetConfirmation = false
     @State private var copied = false
@@ -85,6 +86,41 @@ struct SettingsSheet: View {
                 .padding(.horizontal, RelaySpacing.screenH)
                 .padding(.top, 24)
 
+                // Voice mode toggle
+                @Bindable var s = settings
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("antwort")
+                        .font(.jetbrainsMono(size: 10))
+                        .foregroundStyle(Color.relayFaint)
+                        .tracking(1.2)
+                        .textCase(.uppercase)
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("voice reply")
+                                .font(.jetbrainsMono(size: 13))
+                                .foregroundStyle(Color.relayInk)
+                                .tracking(0.2)
+                            Text(s.voiceMode ? "agent antwortet gesprochen" : "agent arbeitet still")
+                                .font(.jetbrainsMono(size: 10))
+                                .foregroundStyle(Color.relayFaint)
+                                .tracking(0.2)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $s.voiceMode)
+                            .labelsHidden()
+                            .tint(Color.relaySage)
+                    }
+                    .padding(RelaySpacing.cardPad)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: RelaySpacing.cardRadius)
+                            .strokeBorder(style: StrokeStyle(lineWidth: 0.5, dash: [4, 3]))
+                            .foregroundStyle(Color.relayHair2)
+                    }
+                }
+                .padding(.horizontal, RelaySpacing.screenH)
+                .padding(.top, 24)
+
                 Spacer()
 
                 // Reset
@@ -121,4 +157,5 @@ struct SettingsSheet: View {
 #Preview {
     SettingsSheet()
         .environment(AppCoordinator())
+        .environment(RelaySettings())
 }

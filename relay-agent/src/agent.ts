@@ -85,19 +85,29 @@ export async function runAgentLoop(opts: AgentRunnerOptions): Promise<never> {
 
   for await (const { transcript, meta } of channel.messages()) {
     currentCaptureId = meta.captureId;
+    const voiceReply = meta.voiceReply !== false; // default true
     console.error(
-      `[relay-agent] agent processing: "${transcript.slice(0, 60)}${transcript.length > 60 ? "..." : ""}"`,
+      `[relay-agent] agent processing: "${transcript.slice(0, 60)}${transcript.length > 60 ? "..." : ""}" (voice reply: ${voiceReply})`,
     );
+
+    // Build a system prompt variant that tells the agent to stay silent when
+    // the user has disabled voice replies.
+    const systemPrompt = voiceReply
+      ? SYSTEM_PROMPT
+      : SYSTEM_PROMPT +
+        "\n\n<output_mode>Text-only mode is active. Do NOT call reply — work silently and complete the task without any spoken output.</output_mode>";
 
     try {
       for await (const message of query({
         prompt: transcript,
         options: {
-          systemPrompt: SYSTEM_PROMPT,
+          systemPrompt,
           mcpServers: { relay: relayServer },
           // Pre-approve relay tools so Claude can call them without a permission prompt.
           // MCP tool names follow the pattern mcp__{serverName}__{toolName}.
-          allowedTools: ["mcp__relay__reply"],
+          // In text-only mode the reply tool is still available but the system prompt
+          // instructs the agent not to call it.
+          allowedTools: voiceReply ? ["mcp__relay__reply"] : [],
           permissionMode: "default",
           maxTurns: 10,
         },

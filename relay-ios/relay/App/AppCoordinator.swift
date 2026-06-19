@@ -69,6 +69,7 @@ struct AppCoordinatorView: View {
     @State private var captureStore: CaptureStore
     @State private var speechService: SpeechTranscriptionService
     @State private var captureVM: CaptureViewModel
+    @State private var settings = RelaySettings()
 
     init() {
         let store = CaptureStore()
@@ -85,6 +86,7 @@ struct AppCoordinatorView: View {
                     .environment(coordinator)
                     .environment(captureStore)
                     .environment(captureVM)
+                    .environment(settings)
             } else {
                 OnboardingRootView()
                     .environment(coordinator)
@@ -95,6 +97,8 @@ struct AppCoordinatorView: View {
             if coordinator.isOnboarded {
                 coordinator.startRelay()
             }
+            // Wire the settings object into the view model so sendCapture can read voiceMode.
+            captureVM.settings = settings
         }
     }
 }

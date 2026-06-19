@@ -2,6 +2,8 @@ export interface CaptureMetadata {
   captureId?: string;
   duration?: string;
   timestamp?: string;
+  /** When false, the agent should not call reply — work silently. Defaults to true. */
+  voiceReply?: boolean;
 }
 
 export interface InputChannel {

@@ -30,8 +30,12 @@ final class SpeechTranscriptionService {
 
     // MARK: - Live transcript
 
-    /// Updated continuously during a session: finalized text + current volatile segment.
-    private(set) var liveTranscript: String = ""
+    /// Stable, committed text accumulated across finalized results.
+    private(set) var finalizedText: String = ""
+    /// Rough in-flight guess from the model, replaced with each new volatile result.
+    private(set) var volatileText: String = ""
+    /// Combined view of the session so far; use `finalizedText`/`volatileText` for styled rendering.
+    var liveTranscript: String { finalizedText + volatileText }
 
     // MARK: - Internal
 
@@ -53,7 +57,7 @@ final class SpeechTranscriptionService {
     private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
-    private var recognizerTask: Task<AttributedString, Error>?
+    private var recognizerTask: Task<String, Error>?
 
     private let converter = BufferConverter()
 
@@ -99,30 +103,34 @@ final class SpeechTranscriptionService {
     /// Open a streaming transcription session.  Call after `prepareIfNeeded()` succeeds,
     /// before the first buffer arrives.
     func startSession() async throws {
-        guard let locale = resolvedLocale else { throw TranscriptionError.localeNotSupported }
+        guard let locale = resolvedLocale, let analyzerFormat else {
+            throw TranscriptionError.localeNotSupported
+        }
 
-        liveTranscript = ""
+        finalizedText = ""
+        volatileText = ""
 
         let txr = SpeechTranscriber(
             locale: locale,
             transcriptionOptions: [],
-            reportingOptions: [.volatileResults],
+            reportingOptions: [.volatileResults, .fastResults],
             attributeOptions: [])
         self.transcriber = txr
 
         let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
         self.inputContinuation = continuation
 
-        // Drain results on the MainActor, updating liveTranscript as each chunk arrives.
+        // Drain results on the MainActor; volatile text is shown in lighter opacity in the UI.
         recognizerTask = Task { @MainActor in
-            var finalized = AttributedString()
+            var finalized = ""
             for try await result in txr.results {
+                let text = String(result.text.characters)
                 if result.isFinal {
-                    finalized.append(result.text)
-                    liveTranscript = String(finalized.characters)
+                    finalized += text
+                    self.finalizedText = finalized
+                    self.volatileText = ""
                 } else {
-                    // Volatile: show finalized prefix + current partial
-                    liveTranscript = String(finalized.characters) + String(result.text.characters)
+                    self.volatileText = text
                 }
             }
             return finalized
@@ -130,6 +138,8 @@ final class SpeechTranscriptionService {
 
         let anlz = SpeechAnalyzer(modules: [txr])
         self.analyzer = anlz
+        // Preheat the Neural Engine so the first buffer hits a warm model.
+        try await anlz.prepareToAnalyze(in: analyzerFormat)
         try await anlz.start(inputSequence: stream)
     }
 
@@ -157,7 +167,7 @@ final class SpeechTranscriptionService {
         try await analyzer.finalizeAndFinishThroughEndOfInput()
         let text = try await recognizerTask.value
         cleanUpSession()
-        return String(text.characters)
+        return text
     }
 
     /// Cancel without collecting results.
@@ -174,7 +184,8 @@ final class SpeechTranscriptionService {
         analyzer = nil
         transcriber = nil
         recognizerTask = nil
-        liveTranscript = ""
+        finalizedText = ""
+        volatileText = ""
     }
 
     private func resolveLocale() async throws -> Locale {

@@ -93,21 +93,32 @@ struct RecordingView: View {
 
     @ViewBuilder
     private var transcriptText: some View {
-        let live = vm.speech.liveTranscript
         switch vm.speech.modelStatus {
         case .unavailable:
-            // Model not available: no text to show
             Text("transcription unavailable")
                 .font(.newsreader(size: 22, italic: true))
                 .foregroundStyle(Color.relayFaint)
                 .tracking(-0.2)
                 .lineSpacing(6)
         default:
-            Text(live.isEmpty ? "…" : live)
+            let finalized = vm.speech.finalizedText
+            let volatile = vm.speech.volatileText
+            if finalized.isEmpty && volatile.isEmpty {
+                Text("…")
+                    .font(.newsreader(size: 22))
+                    .foregroundStyle(Color.relayInk)
+                    .tracking(-0.2)
+                    .lineSpacing(6)
+            } else {
+                // Volatile text renders at lower opacity so refinements read as polish, not flicker.
+                (
+                    Text(finalized).foregroundStyle(Color.relayInk) +
+                    Text(volatile).foregroundStyle(Color.relayInk.opacity(0.45))
+                )
                 .font(.newsreader(size: 22))
-                .foregroundStyle(Color.relayInk)
                 .tracking(-0.2)
                 .lineSpacing(6)
+            }
         }
     }
 

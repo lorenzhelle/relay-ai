@@ -12,7 +12,7 @@ struct HomeView: View {
             Color.relayBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                HomeHeader(showSettings: $showSettings)
+                HomeHeader(showSettings: $showSettings, settings: settings)
 
                 if store.captures.isEmpty {
                     Spacer()
@@ -75,6 +75,7 @@ struct HomeView: View {
 
 private struct HomeHeader: View {
     @Binding var showSettings: Bool
+    let settings: RelaySettings
 
     var body: some View {
         HStack(alignment: .bottom) {
@@ -89,6 +90,19 @@ private struct HomeHeader: View {
             }
 
             Spacer()
+
+            // Voice mode toggle — tap to switch between speaker and silent
+            @Bindable var s = settings
+            Button {
+                s.voiceMode.toggle()
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            } label: {
+                Image(systemName: s.voiceMode ? "speaker.wave.2" : "speaker.slash")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(s.voiceMode ? Color.relaySage : Color.relayFaint)
+                    .frame(width: 28, height: 28)
+                    .animation(.easeInOut(duration: 0.15), value: s.voiceMode)
+            }
 
             Button {
                 showSettings = true
@@ -127,6 +141,7 @@ private struct DayLabel: View {
 // MARK: - Capture row
 
 private struct CaptureRowView: View {
+    @Environment(AppCoordinator.self) private var appCoordinator
     let capture: Capture
 
     private var timeLabel: String {
@@ -179,6 +194,18 @@ private struct CaptureRowView: View {
                 .tracking(-0.1)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Spacer()
+
+            // Replay button — re-speaks the reply text on demand
+            Button {
+                appCoordinator.speak(text)
+            } label: {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(Color.relaySage)
+                    .frame(width: 24, height: 24)
+            }
         }
         .padding(.top, 2)
     }

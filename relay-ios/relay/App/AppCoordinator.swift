@@ -59,9 +59,16 @@ final class AppCoordinator {
         }
     }
 
-    private func speak(_ text: String) {
+    func speak(_ text: String) {
+        // Reconfigure the audio session for playback — the recorder leaves it in .record mode.
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .spokenAudio)
+        try? session.setActive(true)
+
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier)
+        // AVSpeechSynthesisVoice expects BCP-47 format ("en-US"), not Locale's underscore form ("en_US").
+        let langTag = Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
+        utterance.voice = AVSpeechSynthesisVoice(language: langTag)
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
         synth.speak(utterance)
     }

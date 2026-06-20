@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ListeningView: View {
     @Environment(CaptureViewModel.self) private var vm
+    @Environment(RelaySettings.self) private var settings
     @State private var pulse: Bool = false
 
     var body: some View {
@@ -60,9 +61,22 @@ struct ListeningView: View {
                 }
                 .buttonStyle(.plain)
 
-                Text("or pause 1.5s")
-                    .font(.jetbrainsMono(size: 10))
-                    .foregroundStyle(Color.relayFaint)
+                if settings.tapMode {
+                    Button {
+                        vm.cancelCapture()
+                    } label: {
+                        Text("cancel")
+                            .font(.jetbrainsMono(size: 10))
+                            .foregroundStyle(Color.relayFaint)
+                            .tracking(0.3)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text("← slide to cancel")
+                        .font(.jetbrainsMono(size: 10))
+                        .foregroundStyle(Color.relayFaint)
+                        .tracking(0.3)
+                }
             }
             .padding(.horizontal, RelaySpacing.screenH)
             .padding(.bottom, RelaySpacing.ctaBottom)

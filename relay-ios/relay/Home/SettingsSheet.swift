@@ -86,32 +86,56 @@ struct SettingsSheet: View {
                 .padding(.horizontal, RelaySpacing.screenH)
                 .padding(.top, 24)
 
-                // Voice mode toggle
+                // Capture + reply settings
                 @Bindable var s = settings
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("antwort")
+                    Text("aufnahme")
                         .font(.jetbrainsMono(size: 10))
                         .foregroundStyle(Color.relayFaint)
                         .tracking(1.2)
                         .textCase(.uppercase)
 
-                    HStack {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("voice reply")
-                                .font(.jetbrainsMono(size: 13))
-                                .foregroundStyle(Color.relayInk)
-                                .tracking(0.2)
-                            Text(s.voiceMode ? "agent antwortet gesprochen" : "agent arbeitet still")
-                                .font(.jetbrainsMono(size: 10))
-                                .foregroundStyle(Color.relayFaint)
-                                .tracking(0.2)
+                    VStack(spacing: 0) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("tap mode")
+                                    .font(.jetbrainsMono(size: 13))
+                                    .foregroundStyle(Color.relayInk)
+                                    .tracking(0.2)
+                                Text(s.tapMode ? "einmal tippen zum starten, nochmal zum senden" : "gedrückt halten zum aufnehmen")
+                                    .font(.jetbrainsMono(size: 10))
+                                    .foregroundStyle(Color.relayFaint)
+                                    .tracking(0.2)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $s.tapMode)
+                                .labelsHidden()
+                                .tint(Color.relaySage)
                         }
-                        Spacer()
-                        Toggle("", isOn: $s.voiceMode)
-                            .labelsHidden()
-                            .tint(Color.relaySage)
+                        .padding(RelaySpacing.cardPad)
+
+                        Divider()
+                            .background(Color.relayHair)
+                            .padding(.horizontal, RelaySpacing.cardPad)
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("voice reply")
+                                    .font(.jetbrainsMono(size: 13))
+                                    .foregroundStyle(Color.relayInk)
+                                    .tracking(0.2)
+                                Text(s.voiceMode ? "agent antwortet gesprochen" : "agent arbeitet still")
+                                    .font(.jetbrainsMono(size: 10))
+                                    .foregroundStyle(Color.relayFaint)
+                                    .tracking(0.2)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $s.voiceMode)
+                                .labelsHidden()
+                                .tint(Color.relaySage)
+                        }
+                        .padding(RelaySpacing.cardPad)
                     }
-                    .padding(RelaySpacing.cardPad)
                     .overlay {
                         RoundedRectangle(cornerRadius: RelaySpacing.cardRadius)
                             .strokeBorder(style: StrokeStyle(lineWidth: 0.5, dash: [4, 3]))

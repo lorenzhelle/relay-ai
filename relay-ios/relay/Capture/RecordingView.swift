@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RecordingView: View {
     @Environment(CaptureViewModel.self) private var vm
+    @Environment(RelaySettings.self) private var settings
     @State private var caretVisible: Bool = true
 
     var body: some View {
@@ -40,24 +41,43 @@ struct RecordingView: View {
             VStack(spacing: 14) {
                 WaveformView(level: max(0.2, vm.recorder.audioLevel), tint: .relayAmber, active: true)
 
-                Button {
-                    vm.stopCapture()
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text("release to send")
-                            .font(.relaySans(size: 16, weight: .medium))
-                            .foregroundStyle(Color.relayOnInk)
-                        Spacer()
+                VStack(spacing: 10) {
+                    Button {
+                        vm.stopCapture()
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Text(settings.tapMode ? "tap to send" : "release to send")
+                                .font(.relaySans(size: 16, weight: .medium))
+                                .foregroundStyle(Color.relayOnInk)
+                            Spacer()
+                        }
+                        .frame(height: RelaySpacing.buttonHeight)
+                        .background(
+                            RoundedRectangle(cornerRadius: RelaySpacing.buttonRadius)
+                                .fill(Color.relayAmber)
+                                .shadow(color: .relayAmber.opacity(0.5), radius: 16, y: 8)
+                        )
                     }
-                    .frame(height: RelaySpacing.buttonHeight)
-                    .background(
-                        RoundedRectangle(cornerRadius: RelaySpacing.buttonRadius)
-                            .fill(Color.relayAmber)
-                            .shadow(color: .relayAmber.opacity(0.5), radius: 16, y: 8)
-                    )
+                    .buttonStyle(.plain)
+
+                    if settings.tapMode {
+                        Button {
+                            vm.cancelCapture()
+                        } label: {
+                            Text("cancel")
+                                .font(.jetbrainsMono(size: 10))
+                                .foregroundStyle(Color.relayFaint)
+                                .tracking(0.3)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text("← slide to cancel")
+                            .font(.jetbrainsMono(size: 10))
+                            .foregroundStyle(Color.relayFaint)
+                            .tracking(0.3)
+                    }
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, RelaySpacing.screenH)
             .padding(.bottom, RelaySpacing.ctaBottom)

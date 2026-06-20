@@ -238,46 +238,82 @@ private struct CaptureRowView: View {
     }
 }
 
-// MARK: - Hold to speak
+// MARK: - Hold to speak / tap to speak
 
 private struct HoldToSpeakButton: View {
     @Environment(CaptureViewModel.self) private var captureVM
+    @Environment(RelaySettings.self) private var settings
     @GestureState private var isHolding: Bool = false
+    @State private var dragX: CGFloat = 0
+
+    private var isCancelZone: Bool { dragX < -80 }
 
     var body: some View {
         VStack(spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: RelaySpacing.buttonRadius)
-                    .fill(Color.relayInk)
-                    .frame(height: RelaySpacing.buttonHeight)
-                    .shadow(color: .black.opacity(0.35), radius: 20, y: 10)
-
-                HStack(spacing: 12) {
-                    Image(systemName: "mic")
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundStyle(Color.relayOnInk)
-                    Text("hold to speak")
-                        .font(.relaySans(size: 16, weight: .medium))
-                        .foregroundStyle(Color.relayOnInk)
-                        .tracking(-0.1)
-                }
+            if settings.tapMode {
+                tapButton
+            } else {
+                holdButton
             }
-            .scaleEffect(isHolding ? 0.97 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: isHolding)
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .updating($isHolding) { _, state, _ in state = true }
-                    .onChanged { _ in
-                        if case .idle = captureVM.state { captureVM.startCapture() }
-                    }
-                    .onEnded { _ in captureVM.stopCapture() }
-            )
 
             Text("or press AirPods stem")
                 .font(.jetbrainsMono(size: 10))
                 .foregroundStyle(Color.relayFaint)
                 .tracking(0.3)
         }
+    }
+
+    // MARK: - Button shapes
+
+    private func buttonFill(_ isTap: Bool) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: RelaySpacing.buttonRadius)
+                .fill(isCancelZone ? Color.relayRust : Color.relayInk)
+                .frame(height: RelaySpacing.buttonHeight)
+                .shadow(color: .black.opacity(0.35), radius: 20, y: 10)
+                .animation(.easeInOut(duration: 0.15), value: isCancelZone)
+
+            HStack(spacing: 12) {
+                Image(systemName: isCancelZone ? "xmark" : "mic")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(Color.relayOnInk)
+                    .animation(.easeInOut(duration: 0.15), value: isCancelZone)
+                Text(isCancelZone ? "release to cancel" : (isTap ? "tap to speak" : "hold to speak"))
+                    .font(.relaySans(size: 16, weight: .medium))
+                    .foregroundStyle(Color.relayOnInk)
+                    .tracking(-0.1)
+            }
+        }
+    }
+
+    private var tapButton: some View {
+        buttonFill(true)
+            .onTapGesture {
+                if case .idle = captureVM.state { captureVM.startCapture() }
+            }
+    }
+
+    private var holdButton: some View {
+        buttonFill(false)
+            .scaleEffect(isHolding ? 0.97 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isHolding)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($isHolding) { _, state, _ in state = true }
+                    .onChanged { value in
+                        if case .idle = captureVM.state { captureVM.startCapture() }
+                        dragX = value.translation.width
+                    }
+                    .onEnded { value in
+                        if value.translation.width < -80 {
+                            UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+                            captureVM.cancelCapture()
+                        } else {
+                            captureVM.stopCapture()
+                        }
+                        dragX = 0
+                    }
+            )
     }
 }
 
